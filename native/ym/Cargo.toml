@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/torusl", "crates/sturmrs", "crates/evolvers", "backend"]
+members = ["crates/torusl", "crates/sturmrs", "crates/evolvers", "crates/fgroup", "backend"]
 
 [profile.release]
 opt-level = 3

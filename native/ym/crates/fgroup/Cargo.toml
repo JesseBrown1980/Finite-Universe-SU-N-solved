@@ -1,0 +1,11 @@
+[package]
+name = "fgroup"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.81"
+description = "Finite-group lattice gauge lane (S3 regression, Q8 and further SU(2) subgroups): group data, open-strip builder, exact series, acceptance checks"
+
+[dependencies]
+num-bigint = "0.4"
+num-integer = "0.1"
+num-traits = "0.2"
