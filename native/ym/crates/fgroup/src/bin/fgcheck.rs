@@ -1,17 +1,20 @@
 //! fgcheck: acceptance checks G1-G3 of a finite group for the lattice gauge lane.
 //! G1 group axioms (closure, associativity, identity, inverses), class count, character-table row and column
-//!    orthogonality, sum of d^2 = |G|, 1-dimensional characters multiplicative, fundamental = listed irrep.
+//!    orthogonality in Z[w] (sum chi_r(x) chi_s(x^-1), so no conjugation is needed), sum of d^2 = |G|,
+//!    1-dimensional characters multiplicative, fundamental = listed irrep (integer valued).
 //! G2 the |G| x |G| integer matrix of E_link = sum_{g in S} (1 - L_g) on L^2(G) has characteristic polynomial
 //!    prod_R (x - E_R)^(d_R^2), with E_R = |S| - sum_{g in S} chi_R(g)/d_R from the characters.
 //! G3 Gauss law on the open ROWS x COLS strip: for every orbit representative, every vertex v and every h in G,
 //!    the gauge-transformed raw configuration (tree links included) fixes into the same orbit, M and every
 //!    Wilson loop on rows 0..1 are unchanged, and the electric move targets are the same orbits with the same
 //!    multiplicities.
-//! usage: fgcheck GROUP ROWS COLS        (GROUP 1 = S3, 2 = Q8)        json=0
+//! usage: fgcheck GROUP ROWS COLS        (GROUP 1 = S3, 2 = Q8, 3 = 2T)        json=0
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic, clippy::float_cmp, clippy::cast_precision_loss)]
 
-use fgroup::{basis, group, strip, FGroup, Sys};
+use fgroup::{basis, group, strip, FGroup, Sys, Zw};
+use num_bigint::BigInt;
+use num_traits::{One, Zero};
 use std::collections::BTreeMap;
 
 fn pf(b: bool) -> &'static str {
@@ -22,43 +25,37 @@ fn pf(b: bool) -> &'static str {
     }
 }
 
-/// characteristic polynomial det(x I - A), coefficients from x^0 up, by Faddeev-LeVerrier (exact division)
-fn charpoly(a: &[Vec<i128>]) -> Option<Vec<i128>> {
+/// characteristic polynomial det(x I - A), coefficients from x^0 up, by Faddeev-LeVerrier in big integers
+/// (exact division checked)
+fn charpoly(a: &[Vec<i128>]) -> Option<Vec<BigInt>> {
     let n = a.len();
-    let mut c = vec![0i128; n + 1];
-    c[n] = 1;
-    let mut m = vec![vec![0i128; n]; n]; // M_0 = 0
+    let a: Vec<Vec<BigInt>> = a.iter().map(|r| r.iter().map(|&v| BigInt::from(v)).collect()).collect();
+    let mut c = vec![BigInt::zero(); n + 1];
+    c[n] = BigInt::one();
+    let mut m = vec![vec![BigInt::zero(); n]; n]; // M_0 = 0
     for k in 1..=n {
         // M_k = A M_{k-1} + c_{n-k+1} I
-        let mut nm = vec![vec![0i128; n]; n];
-        for i in 0..n {
-            for j in 0..n {
-                let mut s = 0i128;
-                for (t, row) in m.iter().enumerate() {
-                    s = s.checked_add(a[i][t].checked_mul(row[j])?)?;
-                }
-                nm[i][j] = s;
+        let mut nm = vec![vec![BigInt::zero(); n]; n];
+        for (i, row) in nm.iter_mut().enumerate() {
+            for (j, cell) in row.iter_mut().enumerate() {
+                *cell = (0..n).fold(BigInt::zero(), |acc, t| acc + &a[i][t] * &m[t][j]);
             }
-            nm[i][i] = nm[i][i].checked_add(c[n - k + 1])?;
+            row[i] += &c[n - k + 1];
         }
         // c_{n-k} = -tr(A M_k) / k
-        let mut tr = 0i128;
-        for i in 0..n {
-            for (t, row) in nm.iter().enumerate() {
-                tr = tr.checked_add(a[i][t].checked_mul(row[i])?)?;
-            }
-        }
-        if tr % k as i128 != 0 {
+        let tr = (0..n).fold(BigInt::zero(), |acc, i| (0..n).fold(acc, |acc2, t| acc2 + &a[i][t] * &nm[t][i]));
+        let kb = BigInt::from(k);
+        if !(&tr % &kb).is_zero() {
             return None;
         }
-        c[n - k] = -tr / k as i128;
+        c[n - k] = -(tr / kb);
         m = nm;
     }
     Some(c)
 }
 
-fn polymul(p: &[i128], q: &[i128]) -> Vec<i128> {
-    let mut r = vec![0i128; p.len() + q.len() - 1];
+fn polymul(p: &[BigInt], q: &[BigInt]) -> Vec<BigInt> {
+    let mut r = vec![BigInt::zero(); p.len() + q.len() - 1];
     for (i, a) in p.iter().enumerate() {
         for (j, b) in q.iter().enumerate() {
             r[i + j] += a * b;
@@ -97,21 +94,24 @@ fn g1(g: &FGroup) -> (bool, String) {
         }
     }
     let k = g.chars.len();
-    let rows = (0..k).all(|r| (0..k).all(|s| (0..n).map(|x| g.chars[r][x] * g.chars[s][g.i(x as u8) as usize]).sum::<i64>() == if r == s { n as i64 } else { 0 }));
+    let ok_inv = ok;
+    let zsum = |it: &mut dyn Iterator<Item = Zw>| it.fold(Zw::int(0), |a, b| a.plus(b));
+    let rows = ok_inv
+        && (0..k).all(|r| (0..k).all(|s| zsum(&mut (0..n).map(|x| g.chars[r][x].times(g.chars[s][g.i(x as u8) as usize]))) == Zw::int(if r == s { n as i64 } else { 0 })));
     let mut cols = ok;
     if ok {
         for a in 0..n {
             for b in 0..n {
-                let s: i64 = (0..k).map(|r| g.chars[r][a] * g.chars[r][g.i(b as u8) as usize]).sum();
+                let s = zsum(&mut (0..k).map(|r| g.chars[r][a].times(g.chars[r][g.i(b as u8) as usize])));
                 let csize = (0..n).filter(|&x| class[x] == class[a]).count() as i64;
                 let want = if class[a] == class[b] { n as i64 / csize } else { 0 };
-                cols &= s == want;
+                cols &= s == Zw::int(want);
             }
         }
     }
-    let dims_ok = (0..k).all(|r| g.chars[r][0] == g.dims[r]) && g.dims.iter().map(|d| d * d).sum::<i64>() == n as i64;
-    let mult = (0..k).filter(|&r| g.dims[r] == 1).all(|r| (0..n).all(|a| (0..n).all(|b| g.chars[r][g.m(a as u8, b as u8) as usize] == g.chars[r][a] * g.chars[r][b])));
-    let fund = g.chars[g.fund] == g.chi_f && (0..n).all(|a| g.chi_f[a] == g.chi_f[g.i(a as u8) as usize]);
+    let dims_ok = (0..k).all(|r| g.chars[r][0] == Zw::int(g.dims[r])) && g.dims.iter().map(|d| d * d).sum::<i64>() == n as i64;
+    let mult = ok_inv && (0..k).filter(|&r| g.dims[r] == 1).all(|r| (0..n).all(|a| (0..n).all(|b| g.chars[r][g.m(a as u8, b as u8) as usize] == g.chars[r][a].times(g.chars[r][b]))));
+    let fund = g.chars[g.fund].iter().zip(&g.chi_f).all(|(c, &f)| *c == Zw::int(f)) && (0..n).all(|a| g.chi_f[a] == g.chi_f[g.i(a as u8) as usize]);
     let electric = g.electric.iter().all(|&s| g.electric.contains(&g.i(s))) && g.electric.iter().all(|&s| (0..n as u8).all(|c| g.electric.contains(&g.m(g.m(c, s), g.i(c)))));
     let all = ok && nclass == k && rows && cols && dims_ok && mult && fund && electric;
     (
@@ -145,7 +145,7 @@ fn g2(g: &FGroup) -> (bool, String) {
         }
     }
     let cp = charpoly(&a);
-    let mut want = vec![1i128];
+    let mut want = vec![BigInt::one()];
     let mut eig: Vec<String> = Vec::new();
     let mut ok = true;
     for r in 0..g.chars.len() {
@@ -153,7 +153,7 @@ fn g2(g: &FGroup) -> (bool, String) {
             Some(e) => {
                 eig.push(format!("{e}^{}", g.dims[r] * g.dims[r]));
                 for _ in 0..g.dims[r] * g.dims[r] {
-                    want = polymul(&want, &[-i128::from(e), 1]);
+                    want = polymul(&want, &[BigInt::from(-e), BigInt::one()]);
                 }
             }
             None => ok = false,

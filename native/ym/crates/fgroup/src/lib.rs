@@ -1,5 +1,6 @@
 //! fgroup: finite-group lattice gauge lane for the SU(N) programme. Group data (S3 for regression against
-//! the sealed S3 packages, Q8 from Gaussian-integer matrices), the open ROWS x COLS strip with a comb gauge
+//! the sealed S3 packages, Q8 from Gaussian-integer matrices, 2T from Hurwitz quaternions with Z[w]
+//! characters), the open ROWS x COLS strip with a comb gauge
 //! tree, gauge-orbit and configuration bases, the electric operator E = sum over links and g in S of
 //! (1 - L_g), the magnetic diagonal M = sum over plaquettes (2 - chi_f(U_p)) and rectangular Wilson loops.
 //! Integer arithmetic only.
@@ -8,7 +9,39 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-/// A finite group with its electric generating set, fundamental character and full integer character table.
+/// Eisenstein integer x + y w, w^2 + w + 1 = 0 (exact pairs; integers have y = 0).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Zw {
+    pub x: i64,
+    pub y: i64,
+}
+
+impl Zw {
+    pub const fn int(x: i64) -> Zw {
+        Zw { x, y: 0 }
+    }
+    pub fn plus(self, o: Zw) -> Zw {
+        Zw { x: self.x + o.x, y: self.y + o.y }
+    }
+    /// (a + b w)(c + d w) = (ac - bd) + (ad + bc - bd) w
+    pub fn times(self, o: Zw) -> Zw {
+        Zw { x: self.x * o.x - self.y * o.y, y: self.x * o.y + self.y * o.x - self.y * o.y }
+    }
+    /// complex conjugate: w -> w^2 = -1 - w
+    pub fn conj(self) -> Zw {
+        Zw { x: self.x - self.y, y: -self.y }
+    }
+    /// w^k
+    pub fn w_pow(k: i64) -> Zw {
+        match k.rem_euclid(3) {
+            0 => Zw::int(1),
+            1 => Zw { x: 0, y: 1 },
+            _ => Zw { x: -1, y: -1 },
+        }
+    }
+}
+
+/// A finite group with its electric generating set, fundamental character and full character table.
 pub struct FGroup {
     pub name: &'static str,
     pub n: usize,
@@ -18,8 +51,8 @@ pub struct FGroup {
     pub electric: Vec<u8>,
     /// fundamental (Wilson-loop and plaquette) character, real and integer valued
     pub chi_f: Vec<i64>,
-    /// irreducible characters (rows) and dimensions, integer valued
-    pub chars: Vec<Vec<i64>>,
+    /// irreducible characters (rows), Eisenstein-integer valued, and dimensions
+    pub chars: Vec<Vec<Zw>>,
     pub dims: Vec<i64>,
     /// index of the fundamental irrep in `chars`
     pub fund: usize,
@@ -32,11 +65,12 @@ impl FGroup {
     pub fn i(&self, a: u8) -> u8 {
         self.inv[a as usize]
     }
-    /// electric eigenvalue of irrep k: |S| - sum_{g in S} chi_k(g) / d_k (exact, checked divisible)
+    /// electric eigenvalue of irrep k: |S| - sum_{g in S} chi_k(g) / d_k (exact; the sum must be a rational
+    /// integer, which holds because S is inverse-closed, and divisible by d_k)
     pub fn e_irrep(&self, k: usize) -> Option<i64> {
-        let s: i64 = self.electric.iter().map(|&g| self.chars[k][g as usize]).sum();
+        let s = self.electric.iter().fold(Zw::int(0), |a, &g| a.plus(self.chars[k][g as usize]));
         let d = self.dims[k];
-        (s % d == 0).then(|| self.electric.len() as i64 - s / d)
+        (s.y == 0 && s.x % d == 0).then(|| self.electric.len() as i64 - s.x / d)
     }
 }
 
@@ -64,7 +98,7 @@ pub fn s3() -> FGroup {
         inv,
         electric: vec![1, 2, 5],
         chi_f: (0..6).map(std).collect(),
-        chars: vec![vec![1; 6], (0..6).map(sign).collect(), (0..6).map(std).collect()],
+        chars: vec![vec![Zw::int(1); 6], (0..6).map(|g| Zw::int(sign(g))).collect(), (0..6).map(|g| Zw::int(std(g))).collect()],
         dims: vec![1, 1, 2],
         fund: 2,
     }
@@ -124,7 +158,7 @@ pub fn q8() -> FGroup {
     let inv = (0..n).map(|a| (0..n as u8).find(|&b| mul[a][b as usize] == 0).unwrap_or(255)).collect();
     let tr: Vec<i64> = ms.iter().map(|m| if m[0][0].1 + m[1][1].1 == 0 { m[0][0].0 + m[1][1].0 } else { i64::MIN }).collect();
     // 1-dimensional characters through Q8/{+-1} = {1, i, j, k}: +1 on the class pair named, -1 on the other two
-    let one_dim = |keep: usize| -> Vec<i64> { (0..n).map(|g| if g / 2 == 0 || g / 2 == keep { 1 } else { -1 }).collect() };
+    let one_dim = |keep: usize| -> Vec<Zw> { (0..n).map(|g| Zw::int(if g / 2 == 0 || g / 2 == keep { 1 } else { -1 })).collect() };
     FGroup {
         name: "Q8",
         n,
@@ -132,8 +166,88 @@ pub fn q8() -> FGroup {
         inv,
         electric: vec![2, 3, 4, 5, 6, 7],
         chi_f: tr.clone(),
-        chars: vec![vec![1; n], one_dim(1), one_dim(2), one_dim(3), tr],
+        chars: vec![vec![Zw::int(1); n], one_dim(1), one_dim(2), one_dim(3), tr.iter().map(|&v| Zw::int(v)).collect()],
         dims: vec![1, 1, 1, 1, 2],
+        fund: 4,
+    }
+}
+
+/// Hurwitz quaternion with doubled integer coordinates: q = (a + b i + c j + d k) / 2
+type Hq = [i64; 4];
+
+/// exact Hamilton product of doubled coordinates: 2 (p q) = (2p)(2q)/2, None if not divisible
+fn hmul(p: &Hq, q: &Hq) -> Option<Hq> {
+    let [a1, b1, c1, d1] = *p;
+    let [a2, b2, c2, d2] = *q;
+    let r = [
+        a1 * a2 - b1 * b2 - c1 * c2 - d1 * d2,
+        a1 * b2 + b1 * a2 + c1 * d2 - d1 * c2,
+        a1 * c2 - b1 * d2 + c1 * a2 + d1 * b2,
+        a1 * d2 + b1 * c2 - c1 * b2 + d1 * a2,
+    ];
+    r.iter().all(|v| v % 2 == 0).then(|| [r[0] / 2, r[1] / 2, r[2] / 2, r[3] / 2])
+}
+
+/// The 24 elements of 2T as doubled Hurwitz coordinates: 1, -1, +-i, +-j, +-k, then (+-1 +-i +-j +-k)/2 in sign
+/// order (a, b, c, d) with + before -.
+pub fn t2_elements() -> Vec<Hq> {
+    let mut v: Vec<Hq> = vec![[2, 0, 0, 0], [-2, 0, 0, 0], [0, 2, 0, 0], [0, -2, 0, 0], [0, 0, 2, 0], [0, 0, -2, 0], [0, 0, 0, 2], [0, 0, 0, -2]];
+    for m in 0..16 {
+        let sg = |bit: usize| if m & (8 >> bit) == 0 { 1 } else { -1 };
+        v.push([sg(0), sg(1), sg(2), sg(3)]);
+    }
+    v
+}
+
+/// 2T: multiplication table from exact Hamilton products; chi_f = 2 Re(q) = a; characters in Z[w]:
+/// trivial, 1' = w^k, 1'' = w^2k (k the coset of g in 2T/Q8 relative to a = (1 + i + j + k)/2), 3 = 4 Re^2 - 1,
+/// fundamental, 2' = chi_f 1', 2'' = chi_f 1''. Electric set: the eight elements with Re(q) = 1/2.
+pub fn t2() -> FGroup {
+    let el = t2_elements();
+    let n = el.len();
+    let mut mul = vec![vec![255u8; n]; n];
+    for (x, p) in el.iter().enumerate() {
+        for (y, q) in el.iter().enumerate() {
+            if let Some(r) = hmul(p, q) {
+                mul[x][y] = el.iter().position(|z| *z == r).map_or(255, |v| v as u8);
+            }
+        }
+    }
+    let inv: Vec<u8> = (0..n).map(|x| (0..n as u8).find(|&y| mul[x][y as usize] == 0).unwrap_or(255)).collect();
+    let chi_f: Vec<i64> = el.iter().map(|q| q[0]).collect();
+    // coset index k(g): g a^-k in Q8 (the first 8 elements), a = (1 + i + j + k)/2 = element 8
+    let a = 8u8;
+    let a_inv = inv[a as usize];
+    let q8: Vec<u8> = (0..8).collect();
+    let coset: Vec<i64> = (0..n as u8)
+        .map(|g| {
+            let mut h = g;
+            for k in 0..3 {
+                if q8.contains(&h) {
+                    return k;
+                }
+                h = if (h as usize) < n && (a_inv as usize) < n { mul[h as usize][a_inv as usize] } else { 255 };
+            }
+            -1
+        })
+        .collect();
+    let one1: Vec<Zw> = coset.iter().map(|&k| Zw::w_pow(k)).collect();
+    let one2: Vec<Zw> = coset.iter().map(|&k| Zw::w_pow(2 * k)).collect();
+    // chi_3 = 4 Re^2 - 1 = a^2 - 1 in doubled coordinates
+    let three: Vec<Zw> = el.iter().map(|q| Zw::int(q[0] * q[0] - 1)).collect();
+    let fund: Vec<Zw> = chi_f.iter().map(|&v| Zw::int(v)).collect();
+    let two1: Vec<Zw> = (0..n).map(|g| fund[g].times(one1[g])).collect();
+    let two2: Vec<Zw> = (0..n).map(|g| fund[g].times(one2[g])).collect();
+    let electric: Vec<u8> = (0..n as u8).filter(|&g| el[g as usize][0] == 1).collect();
+    FGroup {
+        name: "2T",
+        n,
+        mul,
+        inv,
+        electric,
+        chi_f,
+        chars: vec![vec![Zw::int(1); n], one1, one2, three, fund, two1, two2],
+        dims: vec![1, 1, 1, 3, 2, 2, 2],
         fund: 4,
     }
 }
@@ -142,6 +256,7 @@ pub fn group(id: i64) -> Option<FGroup> {
     match id {
         1 => Some(s3()),
         2 => Some(q8()),
+        3 => Some(t2()),
         _ => None,
     }
 }

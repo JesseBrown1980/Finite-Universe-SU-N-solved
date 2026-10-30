@@ -17,6 +17,9 @@ up in its diff.
 - `ym/crates/fgroup` (new): finite-group data (S3 for regression, Q8 from Gaussian-integer matrices), the
   open-strip builder `fgconf`, the exact series solver `fgwser` and the acceptance checks `fgcheck`.
 - `ym/Cargo.toml`, `ym/Cargo.lock`: `crates/fgroup` added to the workspace.
+- `ym/crates/fgroup`, 2T milestone: Eisenstein-integer (Z[w]) characters, the binary tetrahedral group 2T from
+  Hurwitz quaternions, series method 2 (gauge-orbit basis with the spectral polynomial), characteristic
+  polynomials in big integers; backend accepts GROUP 3 and series METHOD 2.
 
 The S3 packages `native/ym/results/zconfcert-2026-10-30-cloud` (certified static-charge energies) and
 `native/ym/results/zwilson-2026-10-30-cloud` (certified spatial Wilson loops) are copied unchanged, at their
