@@ -9,7 +9,9 @@
 //! METHOD 1: full gauge-fixed configuration basis (|G|^free states, unit weights), reduced resolvent by the
 //!   spectral polynomial m(x) = prod over every possible nonzero electric eigenvalue (all sums over the links
 //!   of the irrep link energies): E^-1 b = -q(E) b / m(0), m(x) = m(0) + x q(x), with an exact residual check.
-//! usage: fgwser GROUP ROWS COLS METHOD ORDER        json=0
+//! METHOD 2: gauge-orbit basis with Gauss weights and the same spectral polynomial (E is W-self-adjoint, so a
+//!   W-orthogonal b lies in the range of E and q(E) b stays there), with the exact residual check.
+//! usage: fgwser GROUP ROWS COLS METHOD ORDER        (GROUP 1 = S3, 2 = Q8, 3 = 2T; METHOD 0, 1, 2)        json=0
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic, clippy::float_cmp, clippy::cast_precision_loss)]
 
@@ -147,12 +149,12 @@ impl Solver for Spectral<'_> {
 
 fn main() {
     let a: Vec<i64> = std::env::args().skip(1).filter_map(|x| x.parse().ok()).collect();
-    let ok_args = a.len() == 5 && (2..=3).contains(&a[1]) && (2..=4).contains(&a[2]) && (0..=1).contains(&a[3]) && (1..=6).contains(&a[4]);
+    let ok_args = a.len() == 5 && (2..=3).contains(&a[1]) && (2..=4).contains(&a[2]) && (0..=2).contains(&a[3]) && (1..=6).contains(&a[4]);
     let Some(g) = a.first().and_then(|&id| group(id)).filter(|_| ok_args) else {
         eprintln!("usage: fgwser GROUP ROWS COLS METHOD ORDER");
         std::process::exit(1);
     };
-    let (rows, cols, orbit, order) = (a[1] as usize, a[2] as usize, a[3] == 0, a[4] as usize);
+    let (rows, cols, orbit, elimination, order) = (a[1] as usize, a[2] as usize, a[3] != 1, a[3] == 0, a[4] as usize);
     let s = strip(rows, cols);
     let sys = Sys { g: &g, s: &s };
     let links: Vec<usize> = (0..s.edges.len()).collect();
@@ -164,7 +166,11 @@ fn main() {
             adjoint &= bs.w[i] * v == bs.w[j] * bs.e[j].get(&i).copied().unwrap_or(0);
         }
     }
-    let method = if orbit { "A_orbit_elimination" } else { "B_config_spectral" };
+    let method = match a[3] {
+        0 => "A_orbit_elimination",
+        1 => "B_config_spectral",
+        _ => "A2_orbit_spectral",
+    };
     // spectral polynomial over every possible nonzero electric eigenvalue
     let mut sums: BTreeSet<i64> = BTreeSet::from([0]);
     let link_e: BTreeSet<i64> = (0..g.chars.len()).filter_map(|k| g.e_irrep(k)).collect();
@@ -172,7 +178,7 @@ fn main() {
         sums = sums.iter().flat_map(|s| link_e.iter().map(move |e| s + e)).collect();
     }
     let lambdas: Vec<i64> = sums.into_iter().filter(|&v| v != 0).collect();
-    let solver: Box<dyn Solver> = if orbit {
+    let solver: Box<dyn Solver> = if elimination {
         match elim(&bs) {
             Some(e) => Box::new(e),
             None => {
@@ -224,7 +230,7 @@ fn main() {
         if adjoint { "PASS" } else { "FAIL" },
         if solved { "PASS" } else { "FAIL" },
         if ortho { "PASS" } else { "FAIL" },
-        if orbit { 0 } else { lambdas.len() }
+        if elimination { 0 } else { lambdas.len() }
     );
     if !(solved && ortho) {
         std::process::exit(2);

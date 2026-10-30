@@ -1,11 +1,13 @@
-# Exact-head replay of the result packages (results/*-cloud/ and native/ym/results/*-cloud/).
-# First the toolchain manifest: every file of the HEB-C toolchain copy under native/ must match
-# native/TOOLCHAIN.SHA256 (a toolchain change has to update the manifest in the same pull request).
-# Then, for every package present: verify SHA256SUMS and the HASH seal, then run its run.sh, which checks
-# the prediction seals, rebuilds with Rust 1.81, runs clippy -D warnings, runs every HTTP-0 job through
+# Exact-head replay of the result packages, one job per package (results/*-cloud/ and
+# native/ym/results/*-cloud/). First the toolchain manifest: every file of the HEB-C toolchain under native/
+# must match native/TOOLCHAIN.SHA256 (a toolchain change updates the manifest in the same pull request).
+# Each package job verifies SHA256SUMS and the HASH seal, then runs the package's run.sh, which checks the
+# prediction seals, rebuilds with Rust 1.81, runs clippy -D warnings, runs every HTTP-0 job through
 # `hebc_ym_http0 serve` where the package uses it, and checks the output is byte-identical to the recorded
-# HBP. Fail-closed: any missing file, failed sum, seal mismatch, build failure, timeout or byte difference
-# fails the job. Integer only, json=0.
+# HBP. The gate keeps the required check name and passes only when the manifest job and every package job
+# passed and the package list below names exactly the package directories present.
+# Fail-closed: any missing file, failed sum, seal mismatch, build failure, timeout or byte difference fails.
+# Integer only, json=0.
 name: SU(N) result replay (Rust 1.81)
 
 on:
@@ -20,15 +22,13 @@ permissions:
   contents: read
 
 jobs:
-  replay:
-    name: Replay result packages on the exact head
+  manifest:
+    name: Toolchain manifest
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Rust 1.81 with clippy
-        run: rustup toolchain install 1.81.0 --profile minimal -c clippy
-      - name: Toolchain manifest
+      - name: Every toolchain file listed and matching
         run: |
           set -euo pipefail
           cd native
@@ -37,27 +37,62 @@ jobs:
           present=$(find . -type f ! -path './ym/results/*' ! -path './target/*' ! -path './ym/target/*' ! -name TOOLCHAIN.SHA256 | sed 's|^\./||' | LC_ALL=C sort)
           [ "$listed" = "$present" ] || { echo "TOOLCHAIN|result=FAIL|reason=unlisted_or_missing_files|json=0"; diff <(echo "$listed") <(echo "$present"); exit 1; }
           echo "TOOLCHAIN|result=PASS|files=$(wc -l < TOOLCHAIN.SHA256)|json=0"
-      - name: Verify chains and replay
+
+  replay:
+    name: Replay ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - results/zconf-2026-10-30-cloud
+          - native/ym/results/zconfcert-2026-10-30-cloud
+          - native/ym/results/zwilson-2026-10-30-cloud
+          - native/ym/results/zq8-2026-10-30-cloud
+          - native/ym/results/zt2-2026-10-30-cloud
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust 1.81 with clippy
+        run: rustup toolchain install 1.81.0 --profile minimal -c clippy
+      - name: Verify chain and replay
+        env:
+          PKG: ${{ matrix.package }}
         run: |
           set +e
           set -uo pipefail
-          o=CLOUD-REPLAY.hbp; : > $o; bad=0; n=0
-          echo "CLOUD_REPLAY|run=$GITHUB_RUN_ID|commit=$GITHUB_SHA|json=0" >> $o
-          for d in results/*-cloud native/ym/results/*-cloud; do
-            [ -f "$d/run.sh" ] || continue
-            n=$((n+1))
-            seal=$(ls $d/*.seal 2>/dev/null | head -1); hbi=$(ls $d/*.hbi 2>/dev/null | head -1)
-            sums=0; (cd $d && sha256sum -c --quiet SHA256SUMS) && sums=1
-            sealok=0
-            if [ -n "$seal" ] && [ -n "$hbi" ]; then
-              [ "$(cat $d/SHA256SUMS $hbi | sha256sum | cut -c1-64)" = "$(cat $seal)" ] && sealok=1
-            fi
-            bash $d/run.sh > rep.txt 2>&1; rc=$?
-            grep -E '^REPLAY\|' rep.txt | sed "s#^#PKG|dir=$d|#" >> $o
-            ok=0; [ $sums = 1 ] && [ $sealok = 1 ] && [ $rc = 0 ] && ok=1; [ $ok = 1 ] || { bad=1; cat rep.txt; }
-            echo "PACKAGE|dir=$d|sha256sums=$sums|seal=$sealok|replay_exit=$rc|ok=$ok|json=0" >> $o
-          done
-          [ $n -gt 0 ] || bad=1
-          echo "CLOUD_REPLAY_RESULT|packages=$n|all_ok=$([ $bad = 0 ] && echo 1 || echo 0)|json=0" >> $o
-          cat $o
-          [ $bad = 0 ]
+          d=$PKG
+          [ -f "$d/run.sh" ] || { echo "PACKAGE|dir=$d|result=FAIL|reason=no_run_sh|json=0"; exit 1; }
+          seal=$(ls $d/*.seal 2>/dev/null | head -1); hbi=$(ls $d/*.hbi 2>/dev/null | head -1)
+          sums=0; (cd $d && sha256sum -c --quiet SHA256SUMS) && sums=1
+          sealok=0
+          if [ -n "$seal" ] && [ -n "$hbi" ]; then
+            [ "$(cat $d/SHA256SUMS $hbi | sha256sum | cut -c1-64)" = "$(cat $seal)" ] && sealok=1
+          fi
+          bash $d/run.sh > rep.txt 2>&1; rc=$?
+          ok=0; [ $sums = 1 ] && [ $sealok = 1 ] && [ $rc = 0 ] && ok=1
+          grep -E '^REPLAY\|' rep.txt | sed "s#^#PKG|dir=$d|#"
+          echo "PACKAGE|dir=$d|commit=$GITHUB_SHA|run=$GITHUB_RUN_ID|sha256sums=$sums|seal=$sealok|replay_exit=$rc|ok=$ok|json=0"
+          [ $ok = 1 ] || { cat rep.txt; exit 1; }
+
+  gate:
+    name: Replay result packages on the exact head
+    needs: [manifest, replay]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Manifest and every package job passed, every package listed
+        env:
+          MANIFEST_RESULT: ${{ needs.manifest.result }}
+          REPLAY_RESULT: ${{ needs.replay.result }}
+        run: |
+          set -euo pipefail
+          listed=$(sed -n '/^        package:$/,/^    steps:$/p' .github/workflows/results-replay.yml | sed -n 's/^          - //p' | LC_ALL=C sort)
+          present=$(for d in results/*-cloud native/ym/results/*-cloud; do [ -f "$d/run.sh" ] && echo "$d"; done | LC_ALL=C sort)
+          complete=0; [ "$listed" = "$present" ] && complete=1
+          [ $complete = 1 ] || { echo "listed vs present:"; diff <(echo "$listed") <(echo "$present") || true; }
+          ok=0; [ "$MANIFEST_RESULT" = "success" ] && [ "$REPLAY_RESULT" = "success" ] && [ $complete = 1 ] && ok=1
+          echo "CLOUD_REPLAY_RESULT|commit=$GITHUB_SHA|run=$GITHUB_RUN_ID|packages=$(echo "$present" | grep -c .)|manifest=$MANIFEST_RESULT|package_jobs=$REPLAY_RESULT|list_complete=$complete|all_ok=$ok|json=0"
+          [ $ok = 1 ]

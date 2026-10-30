@@ -2,7 +2,7 @@
 //! (weights, magnetic diagonal, electric triples), vacuum sector (CH = 0) or Wilson mode (CH = 2: diagonal
 //! JB M + LAM chi_f(U_C) for the rectangle on rows 0..1, columns XA..XB). For S3 the output is byte-identical
 //! to ymconf's. The written operator is checked exactly W-self-adjoint (w_i Z_ij = w_j Z_ji).
-//! usage: fgconf GROUP ROWS COLS XA XB CH OUT_MATRIX [JB LAM]        json=0
+//! usage: fgconf GROUP ROWS COLS XA XB CH OUT_MATRIX [JB LAM]        (GROUP 1 = S3, 2 = Q8, 3 = 2T)        json=0
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic, clippy::float_cmp, clippy::cast_precision_loss)]
 
