@@ -24,6 +24,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fgroup"
+version = "0.1.0"
+dependencies = [
+ "num-bigint",
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
 name = "hebc-finite-yang-mills"
 version = "0.1.0"
 dependencies = [

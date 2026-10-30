@@ -46,6 +46,11 @@
 //!   wilsonmat/ROWS/COLS/X0/X1/JB/LAM              build ROOT/matrices/wil_*.matrix (ymconf CH = 2)
 //!   wilsoncount/ROWS/COLS/X0/X1/JB/LAM/JE/T       sturmrs at T with JE, JB = 1 (r = JB/JE, lambda = LAM/JE)
 //!   wilsonseries/ROWS/COLS/METHOD/ORDER           exact strong-coupling series (ymwser; 0 orbit, 1 config)
+//! Finite-group lane (fgroup crate; GROUP 1 = S3, 2 = Q8; open strips, rectangle on rows 0..1):
+//!   fgcheck/GROUP/ROWS/COLS                       group axioms, characters, electric spectrum, Gauss law
+//!   fgwilsonmat/GROUP/ROWS/COLS/X0/X1/JB/LAM      build ROOT/matrices/fgw_*.matrix (fgconf Wilson mode)
+//!   fgwilsoncount/GROUP/ROWS/COLS/X0/X1/JB/LAM/JE/T   sturmrs at T with JE, JB = 1
+//!   fgwilsonseries/GROUP/ROWS/COLS/METHOD/ORDER   exact series (fgwser; 0 orbit elimination, 1 config spectral)
 //! Every other kind takes a sector-mode prefix: none (zero momentum), r (reflections
 //! only, every momentum), or tx / ty / td / ta (translations along one line, the
 //! sectors of V^K). Full space for a non-cyclic translation group by Mobius
@@ -109,9 +114,32 @@ impl Spec {
     }
 }
 
-const CONF_KINDS: [&str; 6] = ["confmat", "confcount", "zconf", "wilsonmat", "wilsoncount", "wilsonseries"];
+const CONF_KINDS: [&str; 10] = ["confmat", "confcount", "zconf", "wilsonmat", "wilsoncount", "wilsonseries", "fgcheck", "fgwilsonmat", "fgwilsoncount", "fgwilsonseries"];
 
 fn parse_conf(kind: String, nums: Vec<i64>) -> Result<Spec, String> {
+    if kind.starts_with("fg") {
+        let want = match kind.as_str() {
+            "fgcheck" => 3,
+            "fgwilsonmat" => 7,
+            "fgwilsoncount" => 9,
+            _ => 5,
+        };
+        if nums.len() != want {
+            return Err(format!("{kind} needs {want} integer fields"));
+        }
+        if !(1..=2).contains(&nums[0]) || !(2..=3).contains(&nums[1]) || !(2..=4).contains(&nums[2]) {
+            return Err("finite group or strip geometry out of range".into());
+        }
+        let ok = match kind.as_str() {
+            "fgcheck" => true,
+            "fgwilsonseries" => (0..=1).contains(&nums[3]) && (1..=6).contains(&nums[4]),
+            _ => nums[1] == 2 && 0 <= nums[3] && nums[3] < nums[4] && nums[4] < nums[2] && nums[5] >= 0 && (want == 7 || nums[7] > 0),
+        };
+        if !ok {
+            return Err("finite-group job fields out of range".into());
+        }
+        return Ok(Spec { kind, nums });
+    }
     if kind.starts_with("wilson") {
         let want = match kind.as_str() {
             "wilsonmat" => 6,
@@ -160,6 +188,29 @@ fn conf_matrix_path(root: &Path, s: &Spec) -> PathBuf {
 fn wil_matrix_path(root: &Path, s: &Spec) -> PathBuf {
     let n = &s.nums;
     root.join("matrices").join(format!("wil_{}_{}_{}_{}_{}_{}.matrix", n[0], n[1], n[2], n[3], n[4], n[5]))
+}
+
+fn fgw_matrix_path(root: &Path, s: &Spec) -> PathBuf {
+    let n = &s.nums;
+    root.join("matrices").join(format!("fgw_{}_{}_{}_{}_{}_{}_{}.matrix", n[0], n[1], n[2], n[3], n[4], n[5], n[6]))
+}
+
+/// The finite-group Wilson matrix a count reads must be the one its fgwilsonmat shard recorded.
+fn checked_fgw_matrix(root: &Path, s: &Spec) -> Result<PathBuf, String> {
+    let m = Spec { kind: "fgwilsonmat".into(), nums: s.nums[..7].to_vec() };
+    let hbp = root.join("shards").join(shard_id(&m)).join("run.hbp");
+    let text = fs::read_to_string(&hbp).map_err(|_| format!("missing fgwilsonmat shard for {}", canonical_spec(&m)))?;
+    let want = text
+        .lines()
+        .find_map(|l| l.strip_prefix("MATRIX_SHA|sha256=").and_then(|r| r.split('|').next()))
+        .ok_or("fgwilsonmat shard lacks MATRIX_SHA")?
+        .to_string();
+    let p = fgw_matrix_path(root, &m);
+    let got = file_sha(&p)?;
+    if got != want {
+        return Err(format!("matrix sha mismatch for {}: {got} != {want}", p.display()));
+    }
+    Ok(p)
 }
 
 /// The Wilson matrix a count reads must be the one its wilsonmat shard recorded.
@@ -242,7 +293,8 @@ fn shard_id(s: &Spec) -> String {
 
 fn tool(name: &str) -> Result<PathBuf, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let p = exe.parent().ok_or("no exe dir")?.join(name);
+    // the platform executable suffix: empty on Linux and macOS, ".exe" on Windows
+    let p = exe.parent().ok_or("no exe dir")?.join(format!("{name}{}", std::env::consts::EXE_SUFFIX));
     if !p.exists() {
         return Err(format!("tool {name} not built next to the backend"));
     }
@@ -493,6 +545,28 @@ fn execute(root: &Path, s: &Spec) -> Result<(String, Vec<(String, String)>), Str
             Ok((out, meta))
         }
         "wilsonseries" => run_tool("ymwser", &[st(0), st(1), st(2), st(3)], &[]),
+        "fgcheck" => run_tool("fgcheck", &[st(0), st(1), st(2)], &[]),
+        "fgwilsonmat" => {
+            fs::create_dir_all(root.join("matrices")).map_err(|e| e.to_string())?;
+            let m = fgw_matrix_path(root, s);
+            let tmp = m.with_extension("matrix.part");
+            let (mut out, meta) = run_tool("fgconf", &[st(0), st(1), st(2), st(3), st(4), "2".into(), tmp.display().to_string(), st(5), st(6)], &[])?;
+            if !out.contains("|w_self_adjoint=PASS|") {
+                return Err("fgconf did not report w_self_adjoint=PASS".into());
+            }
+            let sha = file_sha(&tmp)?;
+            let bytes = fs::metadata(&tmp).map_err(|e| e.to_string())?.len();
+            fs::rename(&tmp, &m).map_err(|e| e.to_string())?;
+            out.push_str(&format!("MATRIX_SHA|sha256={sha}|bytes={bytes}|file={}|json=0\n", m.file_name().and_then(|f| f.to_str()).unwrap_or("")));
+            Ok((out, meta))
+        }
+        "fgwilsoncount" => {
+            let mp = checked_fgw_matrix(root, s)?;
+            let (mut out, meta) = run_tool("sturmrs", &[mp.display().to_string(), st(7), "1".into(), st(8)], &[])?;
+            out.push_str(&format!("INPUT_MATRIX|sha256={}|file={}|json=0\n", file_sha(&mp)?, mp.file_name().and_then(|f| f.to_str()).unwrap_or("")));
+            Ok((out, meta))
+        }
+        "fgwilsonseries" => run_tool("fgwser", &[st(0), st(1), st(2), st(3), st(4)], &[]),
         _ => Err("unknown kind".into()),
     }
 }
