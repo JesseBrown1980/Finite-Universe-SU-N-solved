@@ -382,14 +382,13 @@ fn main() {
     }
     let inc = !c.inconclusive.is_empty();
     let v = |b: bool| if inc { "INCONCLUSIVE" } else if b { "PASS" } else { "FAIL" };
-    let p = |b: bool| if b { "PASS" } else { "FAIL" };
     c.out.push(format!(
         "ZQNN_RESULT|N1={}|N2={}|N3={}|N4={}|N5={}|N6={}|inconclusive={}|json=0",
-        p(n1),
-        p(n2),
+        v(n1),
+        v(n2),
         v(n3),
-        p(n4),
-        p(n5),
+        v(n4),
+        v(n5),
         v(n6),
         if inc { c.inconclusive.join(",") } else { "none".into() }
     ));
