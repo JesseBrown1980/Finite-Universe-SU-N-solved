@@ -53,6 +53,8 @@
 //!   fgwilsoncountq2/GROUP/ROWS/COLS/X0/X1/JB/LAM/JE/T/MODE   sturmq2 at T (MODE 0 exact, 1 interval)
 //!   fgwilsonseries/GROUP/ROWS/COLS/METHOD/ORDER   exact series (fgwser; 0 orbit elimination, 1 config spectral,
 //!                                                 2 orbit spectral)
+//!   fgqnn/GROUP/ROWS/COLS/RNUM/RDEN/SEED/SWEEPS   the qutrit variational network (fgqnn): train from SEED
+//!                                                 (0 uniform, 1 identity) and print the exact upper bound
 //! Every other kind takes a sector-mode prefix: none (zero momentum), r (reflections
 //! only, every momentum), or tx / ty / td / ta (translations along one line, the
 //! sectors of V^K). Full space for a non-cyclic translation group by Mobius
@@ -116,7 +118,7 @@ impl Spec {
     }
 }
 
-const CONF_KINDS: [&str; 11] = ["confmat", "confcount", "zconf", "wilsonmat", "wilsoncount", "wilsonseries", "fgcheck", "fgwilsonmat", "fgwilsoncount", "fgwilsonseries", "fgwilsoncountq2"];
+const CONF_KINDS: [&str; 12] = ["confmat", "confcount", "zconf", "wilsonmat", "wilsoncount", "wilsonseries", "fgcheck", "fgwilsonmat", "fgwilsoncount", "fgwilsonseries", "fgwilsoncountq2", "fgqnn"];
 
 fn parse_conf(kind: String, nums: Vec<i64>) -> Result<Spec, String> {
     if kind.starts_with("fg") {
@@ -125,6 +127,7 @@ fn parse_conf(kind: String, nums: Vec<i64>) -> Result<Spec, String> {
             "fgwilsonmat" => 7,
             "fgwilsoncount" => 9,
             "fgwilsoncountq2" => 10,
+            "fgqnn" => 7,
             _ => 5,
         };
         if nums.len() != want {
@@ -135,6 +138,7 @@ fn parse_conf(kind: String, nums: Vec<i64>) -> Result<Spec, String> {
         }
         let ok = match kind.as_str() {
             "fgcheck" => true,
+            "fgqnn" => nums[3] >= 0 && nums[4] > 0 && (0..=1).contains(&nums[5]) && (1..=8).contains(&nums[6]),
             "fgwilsonseries" => (0..=2).contains(&nums[3]) && (1..=6).contains(&nums[4]),
             _ => nums[1] == 2 && 0 <= nums[3] && nums[3] < nums[4] && nums[4] < nums[2] && nums[5] >= 0 && (want == 7 || nums[7] > 0) && (want != 10 || (0..=1).contains(&nums[9])),
         };
@@ -577,6 +581,7 @@ fn execute(root: &Path, s: &Spec) -> Result<(String, Vec<(String, String)>), Str
             out.push_str(&format!("INPUT_MATRIX|sha256={}|file={}|json=0\n", file_sha(&mp)?, mp.file_name().and_then(|f| f.to_str()).unwrap_or("")));
             Ok((out, meta))
         }
+        "fgqnn" => run_tool("fgqnn", &[st(0), st(1), st(2), st(3), st(4), st(5), st(6)], &[]),
         _ => Err("unknown kind".into()),
     }
 }

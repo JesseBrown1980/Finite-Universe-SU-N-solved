@@ -58,6 +58,7 @@ jobs:
           - native/ym/results/zq8-2026-10-30-cloud
           - native/ym/results/zt2-2026-10-30-cloud
           - native/ym/results/z2o-2026-10-30-cloud
+          - native/ym/results/zqnn-2026-10-31-cloud
     steps:
       - uses: actions/checkout@v4
       - name: Rust 1.81 with clippy

@@ -26,6 +26,10 @@ up in its diff.
   quadratic field, and the sturmrs interval algorithm with sqrt2 enclosed in [L, L + 1] / 10^80); backend accepts
   GROUP 4 and the job kind `fgwilsoncountq2` (MODE 0 exact, 1 interval).
 
+- `ym/crates/fgroup`, zqnn: `fgqnn`, the qutrit variational network (v7 of
+  GGUF-files-operating-as-trained-quantum-neural-network-models) on the finite-group strips, giving exact
+  rational upper bounds on E0; backend job kind `fgqnn`.
+
 The S3 packages `native/ym/results/zconfcert-2026-10-30-cloud` (certified static-charge energies) and
 `native/ym/results/zwilson-2026-10-30-cloud` (certified spatial Wilson loops) are copied unchanged, at their
 original paths, so their `run.sh` files and seals are the sealed originals; here they rebuild this copy of the
