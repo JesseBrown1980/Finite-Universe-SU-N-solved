@@ -6,6 +6,9 @@
 # `hebc_ym_http0 serve` where the package uses it, and checks the output is byte-identical to the recorded
 # HBP. The gate keeps the required check name and passes only when the manifest job and every package job
 # passed and the package list below names exactly the package directories present.
+# z2o is replayed split (its ADDENDUM3.md): six S1 part jobs recompute its S1 lines in parallel, each
+# byte-identical to the same lines of RESULT.hbp, and its package job takes those lines from RESULT.hbp
+# and recomputes every other line; the gate also requires every S1 part job.
 # Fail-closed: any missing file, failed sum, seal mismatch, build failure, timeout or byte difference fails.
 # Integer only, json=0.
 name: SU(N) result replay (Rust 1.81)
@@ -41,7 +44,10 @@ jobs:
   replay:
     name: Replay ${{ matrix.package }}
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # z2o: 360 minutes, the reviewing seat's decision for this package (its full run takes about six hours on one
+    # 2.1 GHz cloud core; with S1 split off, its package job keeps X1's two exact 2O counts, about three hours);
+    # every other package 90.
+    timeout-minutes: ${{ matrix.package == 'native/ym/results/z2o-2026-10-30-cloud' && 360 || 90 }}
     strategy:
       fail-fast: false
       matrix:
@@ -51,6 +57,7 @@ jobs:
           - native/ym/results/zwilson-2026-10-30-cloud
           - native/ym/results/zq8-2026-10-30-cloud
           - native/ym/results/zt2-2026-10-30-cloud
+          - native/ym/results/z2o-2026-10-30-cloud
           - native/ym/results/zqnn-2026-10-31-cloud
     steps:
       - uses: actions/checkout@v4
@@ -59,6 +66,7 @@ jobs:
       - name: Verify chain and replay
         env:
           PKG: ${{ matrix.package }}
+          Z2O_S1_FROM: ${{ matrix.package == 'native/ym/results/z2o-2026-10-30-cloud' && 'RESULT.hbp' || '' }}
         run: |
           set +e
           set -uo pipefail
@@ -76,9 +84,34 @@ jobs:
           echo "PACKAGE|dir=$d|commit=$GITHUB_SHA|run=$GITHUB_RUN_ID|sha256sums=$sums|seal=$sealok|replay_exit=$rc|ok=$ok|json=0"
           [ $ok = 1 ] || { cat rep.txt; exit 1; }
 
+  z2o_s1:
+    name: Replay z2o S1 part ${{ matrix.part }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        part: ['0', '1:0', '1:1', '1:2', '1:3', '2']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust 1.81 with clippy
+        run: rustup toolchain install 1.81.0 --profile minimal -c clippy
+      - name: Recompute the S1 part and compare with RESULT.hbp
+        env:
+          PART: ${{ matrix.part }}
+        run: |
+          set +e
+          set -uo pipefail
+          d=native/ym/results/z2o-2026-10-30-cloud
+          bash $d/run_s1.sh "$PART" > rep.txt 2>&1; rc=$?
+          ok=0; [ $rc = 0 ] && ok=1
+          grep -E '^REPLAY_S1\|' rep.txt | sed "s#^#PKG|dir=$d|#"
+          echo "S1_PART|dir=$d|part=$PART|commit=$GITHUB_SHA|run=$GITHUB_RUN_ID|replay_exit=$rc|ok=$ok|json=0"
+          [ $ok = 1 ] || { cat rep.txt; exit 1; }
+
   gate:
     name: Replay result packages on the exact head
-    needs: [manifest, replay]
+    needs: [manifest, replay, z2o_s1]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -88,12 +121,13 @@ jobs:
         env:
           MANIFEST_RESULT: ${{ needs.manifest.result }}
           REPLAY_RESULT: ${{ needs.replay.result }}
+          Z2O_S1_RESULT: ${{ needs.z2o_s1.result }}
         run: |
           set -euo pipefail
           listed=$(sed -n '/^        package:$/,/^    steps:$/p' .github/workflows/results-replay.yml | sed -n 's/^          - //p' | LC_ALL=C sort)
           present=$(for d in results/*-cloud native/ym/results/*-cloud; do [ -f "$d/run.sh" ] && echo "$d"; done | LC_ALL=C sort)
           complete=0; [ "$listed" = "$present" ] && complete=1
           [ $complete = 1 ] || { echo "listed vs present:"; diff <(echo "$listed") <(echo "$present") || true; }
-          ok=0; [ "$MANIFEST_RESULT" = "success" ] && [ "$REPLAY_RESULT" = "success" ] && [ $complete = 1 ] && ok=1
-          echo "CLOUD_REPLAY_RESULT|commit=$GITHUB_SHA|run=$GITHUB_RUN_ID|packages=$(echo "$present" | grep -c .)|manifest=$MANIFEST_RESULT|package_jobs=$REPLAY_RESULT|list_complete=$complete|all_ok=$ok|json=0"
+          ok=0; [ "$MANIFEST_RESULT" = "success" ] && [ "$REPLAY_RESULT" = "success" ] && [ "$Z2O_S1_RESULT" = "success" ] && [ $complete = 1 ] && ok=1
+          echo "CLOUD_REPLAY_RESULT|commit=$GITHUB_SHA|run=$GITHUB_RUN_ID|packages=$(echo "$present" | grep -c .)|manifest=$MANIFEST_RESULT|package_jobs=$REPLAY_RESULT|z2o_s1_parts=$Z2O_S1_RESULT|list_complete=$complete|all_ok=$ok|json=0"
           [ $ok = 1 ]

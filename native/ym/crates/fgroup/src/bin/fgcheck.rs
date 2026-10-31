@@ -1,18 +1,19 @@
 //! fgcheck: acceptance checks G1-G3 of a finite group for the lattice gauge lane.
 //! G1 group axioms (closure, associativity, identity, inverses), class count, character-table row and column
-//!    orthogonality in Z[w] (sum chi_r(x) chi_s(x^-1), so no conjugation is needed), sum of d^2 = |G|,
-//!    1-dimensional characters multiplicative, fundamental = listed irrep (integer valued).
+//!    orthogonality in the group's character field (sum chi_r(x) chi_s(x^-1), so no conjugation is needed),
+//!    sum of d^2 = |G|, 1-dimensional characters multiplicative, fundamental = listed irrep and real.
 //! G2 the |G| x |G| integer matrix of E_link = sum_{g in S} (1 - L_g) on L^2(G) has characteristic polynomial
-//!    prod_R (x - E_R)^(d_R^2), with E_R = |S| - sum_{g in S} chi_R(g)/d_R from the characters.
+//!    prod_R (x - E_R)^(d_R^2), with E_R = |S| - sum_{g in S} chi_R(g)/d_R from the characters (algebraic
+//!    integers; the product must have rational-integer coefficients).
 //! G3 Gauss law on the open ROWS x COLS strip: for every orbit representative, every vertex v and every h in G,
 //!    the gauge-transformed raw configuration (tree links included) fixes into the same orbit, M and every
 //!    Wilson loop on rows 0..1 are unchanged, and the electric move targets are the same orbits with the same
 //!    multiplicities.
-//! usage: fgcheck GROUP ROWS COLS        (GROUP 1 = S3, 2 = Q8, 3 = 2T)        json=0
+//! usage: fgcheck GROUP ROWS COLS        (GROUP 1 = S3, 2 = Q8, 3 = 2T, 4 = 2O)        json=0
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic, clippy::float_cmp, clippy::cast_precision_loss)]
 
-use fgroup::{basis, group, strip, FGroup, Sys, Zw};
+use fgroup::{basis, group, strip, Alg, FGroup, Field, Sys};
 use num_bigint::BigInt;
 use num_traits::{One, Zero};
 use std::collections::BTreeMap;
@@ -54,16 +55,6 @@ fn charpoly(a: &[Vec<i128>]) -> Option<Vec<BigInt>> {
     Some(c)
 }
 
-fn polymul(p: &[BigInt], q: &[BigInt]) -> Vec<BigInt> {
-    let mut r = vec![BigInt::zero(); p.len() + q.len() - 1];
-    for (i, a) in p.iter().enumerate() {
-        for (j, b) in q.iter().enumerate() {
-            r[i + j] += a * b;
-        }
-    }
-    r
-}
-
 fn g1(g: &FGroup) -> (bool, String) {
     let n = g.n;
     let closure = g.mul.iter().all(|r| r.iter().all(|&x| (x as usize) < n));
@@ -95,23 +86,24 @@ fn g1(g: &FGroup) -> (bool, String) {
     }
     let k = g.chars.len();
     let ok_inv = ok;
-    let zsum = |it: &mut dyn Iterator<Item = Zw>| it.fold(Zw::int(0), |a, b| a.plus(b));
+    let f = g.field;
+    let zsum = |it: &mut dyn Iterator<Item = Alg>| it.fold(Alg::int(0), |a, b| a.plus(b));
     let rows = ok_inv
-        && (0..k).all(|r| (0..k).all(|s| zsum(&mut (0..n).map(|x| g.chars[r][x].times(g.chars[s][g.i(x as u8) as usize]))) == Zw::int(if r == s { n as i64 } else { 0 })));
+        && (0..k).all(|r| (0..k).all(|s| zsum(&mut (0..n).map(|x| g.chars[r][x].times(g.chars[s][g.i(x as u8) as usize], f))) == Alg::int(if r == s { n as i64 } else { 0 })));
     let mut cols = ok;
     if ok {
         for a in 0..n {
             for b in 0..n {
-                let s = zsum(&mut (0..k).map(|r| g.chars[r][a].times(g.chars[r][g.i(b as u8) as usize])));
+                let s = zsum(&mut (0..k).map(|r| g.chars[r][a].times(g.chars[r][g.i(b as u8) as usize], f)));
                 let csize = (0..n).filter(|&x| class[x] == class[a]).count() as i64;
                 let want = if class[a] == class[b] { n as i64 / csize } else { 0 };
-                cols &= s == Zw::int(want);
+                cols &= s == Alg::int(want);
             }
         }
     }
-    let dims_ok = (0..k).all(|r| g.chars[r][0] == Zw::int(g.dims[r])) && g.dims.iter().map(|d| d * d).sum::<i64>() == n as i64;
-    let mult = ok_inv && (0..k).filter(|&r| g.dims[r] == 1).all(|r| (0..n).all(|a| (0..n).all(|b| g.chars[r][g.m(a as u8, b as u8) as usize] == g.chars[r][a].times(g.chars[r][b]))));
-    let fund = g.chars[g.fund].iter().zip(&g.chi_f).all(|(c, &f)| *c == Zw::int(f)) && (0..n).all(|a| g.chi_f[a] == g.chi_f[g.i(a as u8) as usize]);
+    let dims_ok = (0..k).all(|r| g.chars[r][0] == Alg::int(g.dims[r])) && g.dims.iter().map(|d| d * d).sum::<i64>() == n as i64;
+    let mult = ok_inv && (0..k).filter(|&r| g.dims[r] == 1).all(|r| (0..n).all(|a| (0..n).all(|b| g.chars[r][g.m(a as u8, b as u8) as usize] == g.chars[r][a].times(g.chars[r][b], f))));
+    let fund = g.chars[g.fund] == g.chi_f && (0..n).all(|a| g.chi_f[a] == g.chi_f[g.i(a as u8) as usize]);
     let electric = g.electric.iter().all(|&s| g.electric.contains(&g.i(s))) && g.electric.iter().all(|&s| (0..n as u8).all(|c| g.electric.contains(&g.m(g.m(c, s), g.i(c)))));
     let all = ok && nclass == k && rows && cols && dims_ok && mult && fund && electric;
     (
@@ -134,6 +126,13 @@ fn g1(g: &FGroup) -> (bool, String) {
     )
 }
 
+/// polynomial with coefficients x + y theta in big integers (theta^2 = p + q theta)
+type BigAlg = (BigInt, BigInt);
+
+fn balg_mul(a: &BigAlg, b: &BigAlg, f: Field) -> BigAlg {
+    (&a.0 * &b.0 + &a.1 * &b.1 * f.p, &a.0 * &b.1 + &a.1 * &b.0 + &a.1 * &b.1 * f.q)
+}
+
 fn g2(g: &FGroup) -> (bool, String) {
     let n = g.n;
     // (E f)(x) = sum_{s in S} (f(x) - f(s x)); matrix A[x][y]
@@ -145,23 +144,35 @@ fn g2(g: &FGroup) -> (bool, String) {
         }
     }
     let cp = charpoly(&a);
-    let mut want = vec![BigInt::one()];
+    let f = g.field;
+    let mut want: Vec<BigAlg> = vec![(BigInt::one(), BigInt::zero())];
     let mut eig: Vec<String> = Vec::new();
     let mut ok = true;
     for r in 0..g.chars.len() {
         match g.e_irrep(r) {
             Some(e) => {
-                eig.push(format!("{e}^{}", g.dims[r] * g.dims[r]));
+                eig.push(format!("{}^{}", e.show(f), g.dims[r] * g.dims[r]));
+                let factor: [BigAlg; 2] = [(BigInt::from(-e.x), BigInt::from(-e.y)), (BigInt::one(), BigInt::zero())];
                 for _ in 0..g.dims[r] * g.dims[r] {
-                    want = polymul(&want, &[BigInt::from(-e), BigInt::one()]);
+                    let mut nw: Vec<BigAlg> = vec![(BigInt::zero(), BigInt::zero()); want.len() + 1];
+                    for (i, c) in want.iter().enumerate() {
+                        for (j, d) in factor.iter().enumerate() {
+                            let pr = balg_mul(c, d, f);
+                            nw[i + j].0 += pr.0;
+                            nw[i + j].1 += pr.1;
+                        }
+                    }
+                    want = nw;
                 }
             }
             None => ok = false,
         }
     }
-    let same = cp.as_ref() == Some(&want);
+    let rational = want.iter().all(|c| c.1.is_zero());
+    let want_int: Vec<BigInt> = want.into_iter().map(|c| c.0).collect();
+    let same = rational && cp.as_ref() == Some(&want_int);
     let cps = cp.map_or("overflow".to_string(), |c| c.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(","));
-    let fe = g.e_irrep(g.fund).unwrap_or(-1);
+    let fe = g.e_irrep(g.fund).map_or("-".to_string(), |e| e.show(f));
     (
         ok && same,
         format!("FG_G2|group={}|electric_set_size={}|charpoly_low_to_high={cps}|irrep_eigenvalues_with_multiplicity={}|fundamental_link_energy={fe}|charpoly_equals_character_prediction={}|json=0", g.name, g.electric.len(), eig.join(","), pf(ok && same)),
@@ -190,14 +201,14 @@ fn g3(g: &FGroup, rows: usize, cols: usize) -> (bool, String) {
         let raw = sys.raw(q);
         let k0 = sys.key(q);
         let m0 = sys.magnetic(&raw);
-        let w0: Vec<i64> = (1..cols).map(|x1| sys.wilson(&raw, 0, x1)).collect();
+        let w0: Vec<Alg> = (1..cols).map(|x1| sys.wilson(&raw, 0, x1)).collect();
         let t0 = targets(&raw);
         for v in 0..s.sites {
             for h in 0..g.n as u8 {
                 let gl = sys.gauge(&raw, v, h);
                 fix_ok &= sys.key(&sys.fix(&gl)) == k0;
                 mag_ok &= sys.magnetic(&gl) == m0;
-                wil_ok &= (1..cols).map(|x1| sys.wilson(&gl, 0, x1)).collect::<Vec<i64>>() == w0;
+                wil_ok &= (1..cols).map(|x1| sys.wilson(&gl, 0, x1)).collect::<Vec<Alg>>() == w0;
                 move_ok &= targets(&gl) == t0;
                 checks += 1;
             }

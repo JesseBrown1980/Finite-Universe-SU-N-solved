@@ -10,7 +10,7 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic, clippy::float_cmp, clippy::cast_precision_loss)]
 
-use fgroup::{basis, group, strip, Basis, Sys};
+use fgroup::{basis, group, strip, Alg, Basis, Sys};
 use num_bigint::BigInt;
 use num_integer::Integer;
 use num_traits::{One, Signed, Zero};
@@ -230,7 +230,13 @@ fn main() {
             }
         })
         .collect();
-    let mag: Vec<i64> = b.reps.iter().map(|q| sys.magnetic(&sys.raw(q))).collect();
+    // plaquette values are field elements x + y theta since the 2O lane; this network takes rational integers only
+    let mags: Vec<Alg> = b.reps.iter().map(|q| sys.magnetic(&sys.raw(q))).collect();
+    if mags.iter().any(|m| m.y != 0) {
+        eprintln!("FG_QNN|result=FAIL|reason=plaquette_values_not_rational_integers|json=0");
+        std::process::exit(1);
+    }
+    let mag: Vec<i64> = mags.iter().map(|m| m.x).collect();
     let model = Model { b: &b, n: n as i64, orbit, mag, rnum, rden };
     let count = 2 * nq * 2 * TPB;
     let mut p = vec![0i64; count];

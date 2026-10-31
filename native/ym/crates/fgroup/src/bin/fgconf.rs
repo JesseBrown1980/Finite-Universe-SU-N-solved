@@ -1,12 +1,16 @@
 //! fgconf: finite-group gauge Hamiltonian on an open ROWS x COLS strip in the exchange format read by sturmrs
 //! (weights, magnetic diagonal, electric triples), vacuum sector (CH = 0) or Wilson mode (CH = 2: diagonal
 //! JB M + LAM chi_f(U_C) for the rectangle on rows 0..1, columns XA..XB). For S3 the output is byte-identical
-//! to ymconf's. The written operator is checked exactly W-self-adjoint (w_i Z_ij = w_j Z_ji).
-//! usage: fgconf GROUP ROWS COLS XA XB CH OUT_MATRIX [JB LAM]        (GROUP 1 = S3, 2 = Q8, 3 = 2T)        json=0
+//! to ymconf's. When every diagonal value is a rational integer the standard integer format is written (read
+//! by sturmrs and sturmq2); when the group's field enters the diagonal (2O: sqrt2), the file starts with the
+//! line "QF P Q" (theta^2 = P + Q theta) and each diagonal value is written as "X:Y" for X + Y theta (read by
+//! sturmq2). The electric part is always an integer matrix.
+//! The written operator is checked exactly W-self-adjoint (w_i Z_ij = w_j Z_ji).
+//! usage: fgconf GROUP ROWS COLS XA XB CH OUT_MATRIX [JB LAM]        (GROUP 1 = S3, 2 = Q8, 3 = 2T, 4 = 2O)        json=0
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic, clippy::float_cmp, clippy::cast_precision_loss)]
 
-use fgroup::{basis, group, strip, Sys};
+use fgroup::{basis, group, strip, Alg, Sys};
 use std::io::Write;
 
 fn main() {
@@ -34,17 +38,18 @@ fn main() {
     let links: Vec<usize> = (0..s.edges.len()).collect();
     let b = basis(&sys, true, &links);
     let n = b.reps.len();
-    let mags: Vec<i64> = b
+    let mags: Vec<Alg> = b
         .reps
         .iter()
         .map(|q| {
             let raw = sys.raw(q);
             match wl.filter(|_| ch == 2) {
-                Some((jb, lam)) => jb * sys.magnetic(&raw) + lam * sys.wilson(&raw, xa, xb),
+                Some((jb, lam)) => sys.magnetic(&raw).scale(jb).plus(sys.wilson(&raw, xa, xb).scale(lam)),
                 None => sys.magnetic(&raw),
             }
         })
         .collect();
+    let rational = mags.iter().all(|m| m.y == 0);
     let mut adjoint = true;
     for i in 0..n {
         for (&j, &v) in &b.e[i] {
@@ -52,7 +57,13 @@ fn main() {
         }
     }
     let join = |v: &[i64]| v.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(" ");
-    let mut text = format!("{n}\n{}\n{}\n", join(&b.w), join(&mags));
+    let mag_text = if rational {
+        mags.iter().map(|m| m.x.to_string()).collect::<Vec<_>>().join(" ")
+    } else {
+        mags.iter().map(|m| format!("{}:{}", m.x, m.y)).collect::<Vec<_>>().join(" ")
+    };
+    let header = if rational { String::new() } else { format!("QF {} {}\n", g.field.p, g.field.q) };
+    let mut text = format!("{header}{n}\n{}\n{mag_text}\n", join(&b.w));
     let mut entries = 0usize;
     for (i, row) in b.e.iter().enumerate() {
         for (&j, &v) in row.range(i..) {
@@ -62,13 +73,14 @@ fn main() {
     }
     let ok = adjoint && std::fs::File::create(out).and_then(|mut f| f.write_all(text.as_bytes())).is_ok();
     println!(
-        "FG_MATRIX|group={}|rows={rows}|cols={cols}|xa={xa}|xb={xb}|mode={}|{}links={}|plaquettes={}|free_links={}|states={n}|upper_entries={entries}|w_self_adjoint={}|json=0",
+        "FG_MATRIX|group={}|rows={rows}|cols={cols}|xa={xa}|xb={xb}|mode={}|{}links={}|plaquettes={}|free_links={}|states={n}|upper_entries={entries}|{}w_self_adjoint={}|json=0",
         g.name,
         if ch == 2 { "wilson" } else { "vacuum" },
         wl.filter(|_| ch == 2).map_or(String::new(), |(jb, lam)| format!("wilson_loop=1x{}|diag=JB*M+LAM*W|JB={jb}|LAM={lam}|", xb - xa)),
         s.edges.len(),
         s.plaq.len(),
         s.free.len(),
+        if rational { String::new() } else { format!("diagonal_field=QF_{}_{}|", g.field.p, g.field.q) },
         if adjoint { "PASS" } else { "FAIL" }
     );
     std::process::exit(if ok { 0 } else { 2 });
