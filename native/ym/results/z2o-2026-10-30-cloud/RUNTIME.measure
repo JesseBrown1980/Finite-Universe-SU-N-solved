@@ -124,3 +124,4 @@ COUNT_TIME|attempt=replay|group=Q8|r=1/1|mode=exact|threshold=634465953868511018
 COUNT_TIME|attempt=replay|group=Q8|r=1/1|mode=exact|threshold=6344659538685110188/1000|negative=1|elapsed_s=1562|source=replay_watcher_floor_of_shard_elapsed_ms|json=0
 COUNT_TIME|attempt=replay|group=2O|r=1/27|mode=exact|threshold=119683873523119131/1000|negative=0|elapsed_s=5147|source=replay_watcher_floor_of_shard_elapsed_ms|json=0
 COUNT_TIME|attempt=replay|group=2O|r=1/27|mode=exact|threshold=119683873523119132/1000|negative=1|elapsed_s=5063|source=replay_watcher_floor_of_shard_elapsed_ms|json=0
+RUNTIME_CI|run=41211349149|commit=85ca4f60e2b3ac35e0d7103616e85124ea088314|z2o_job=cancelled_at_timeout|z2o_job_duration_s=21617|timeout_minutes=360|manifest=success|zconf=success|zt2=success|zconfcert=success|zwilson=success|zq8=success|followed_by=ADDENDUM3.md split replay|json=0

@@ -7,7 +7,8 @@ checks, electric spectrum, Gauss law, exact strong-coupling series of the Wilson
 loops at finite coupling on the 2×3 strip. Every computation is a job of the HEB-C HTTP-0 server
 (`hebc_ym_http0 serve`). Predictions were frozen in `PREREG.md` (`a5c0b994…`) before any 2O code; addendum 1
 (`1364b1a0…`, the counter for the certified values after the solver-scaling gate) and addendum 2 (`88cf2d17…`,
-X1 and the square-root enclosure check) were sealed before any 2O count. Rust 1.81, clippy `-D warnings`,
+X1 and the square-root enclosure check) were sealed before any 2O count; addendum 3 (`c9da5a4a…`, the split CI
+replay) was sealed before the CI replay it governs. Rust 1.81, clippy `-D warnings`,
 exact integer and quadratic-field arithmetic only, json=0.
 
 Hamiltonian: H/J_E = E + r Σ_p (2 − χ_f(U_p)), E = Σ_links Σ_{g∈S} (1 − L_g), S = the six elements
@@ -102,12 +103,20 @@ order-3 and order-5 partial sums fall just below and just above it.
   and the X1 counts 85.8 and 84.4 min.
 - `RUNTIME.measure` records every exact count's threshold, result and elapsed time for both starts and the
   replay, the interval-count totals and the memory samples; it is runtime metadata, outside `RESULT.hbp`.
+- On GitHub the full replay outgrows one hosted job: CI run 41211349149 cancelled it at the 360-minute limit
+  (360 min 17 s) with every other package passing. The CI replay is therefore split (`ADDENDUM3.md`).
 
 ## Replay and integrity chain
 
 `run.sh` checks the prediction and addendum seals, builds the native/ym workspace and the driver with Rust 1.81,
 runs clippy, starts `hebc_ym_http0 serve` on a fresh ROOT, runs everything through it and checks byte identity
-with `RESULT.hbp`; `results-replay.yml` replays it in its own job on the exact head, with a 360-minute timeout
-for this package. `SHA256SUMS` covers every other file, `Z2O.hbi` holds the chained `EMIT` rows
+with `RESULT.hbp`: the full replay. On the exact head, `results-replay.yml` replays the package split
+(`ADDENDUM3.md`). Six S1 part jobs run `run_s1.sh` (zwilson; zq8 bracket by bracket; zt2) and each recomputes its
+MATRIX, COUNT and S1 lines through the server, byte-identical to the same lines of `RESULT.hbp`; the package job
+runs `run.sh` with `Z2O_S1_FROM=RESULT.hbp`, which keeps those 84 lines in place and recomputes every other line,
+the whole output byte-identical to `RESULT.hbp`. The gate requires all of them, so every line is recomputed by
+exactly one job. The driver's split modes are environment-only; without them it runs the code of the official
+run. `SHA256SUMS` covers every other file, `Z2O.hbi` holds the chained `EMIT` rows
 (`pid[0] = sha16("EMITTER-SEED|SUN-Z2O-2026-10-30-CLOUD")`, `pid[n] = sha16(pid[n-1]|name)`), and
-`Z2O.seal = sha256(SHA256SUMS + Z2O.hbi)`.
+`Z2O.seal = sha256(SHA256SUMS + Z2O.hbi)`. The first seal (`fedcbf45…`, commit `85ca4f6`) covered the package
+before the split; the package is resealed with addendum 3, `run_s1.sh` and the extended driver.

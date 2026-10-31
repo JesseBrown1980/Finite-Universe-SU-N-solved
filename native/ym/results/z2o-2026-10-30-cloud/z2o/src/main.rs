@@ -3,6 +3,11 @@
 //! backend (hebc_ym_http0 serve) over HTTP/1.1. See PREREG.md and ADDENDUM.md.
 //! Rust 1.81, integer arithmetic only (i128, big integers, exact Q(sqrt2) comparisons), json=0.
 //! usage: z2o PORT
+//! Split replay (ADDENDUM3.md), environment only; with neither variable set the full run is unchanged:
+//!   Z2O_PART=s1:<part>     recompute and print only the S1 lines of <part> (package 0 zwilson, 1 zq8, 2 zt2,
+//!                          optionally :<bracket> 0..3)
+//!   Z2O_PART=s1rec:<part>  print the same lines as recorded in the file named by Z2O_S1_FROM (no server)
+//!   Z2O_S1_FROM=<file>     the main job: the recorded S1 lines in place, every other line recomputed
 use num_bigint::BigInt;
 use num_traits::{Signed, Zero};
 use std::cmp::Ordering;
@@ -356,9 +361,101 @@ fn read_sealed(path: &str, sha: &str) -> (bool, String) {
     (ok, String::from_utf8(bytes).unwrap_or_default())
 }
 
+/// Split replay (ADDENDUM3.md): the seven S1 lines of one sealed bracket as recorded in `text`, in the order the
+/// full run writes them, and whether they record a pass. None unless each line occurs exactly once.
+fn recorded_bracket(text: &str, pkg: (i64, usize, i128, &str), b: (i128, i128, i128, i128)) -> Option<(Vec<String>, bool)> {
+    let (group, cols, je, name) = pkg;
+    let (rn, rd, tlo, thi) = b;
+    let jb = je * rn / rd;
+    let one = |prefix: String| -> Option<String> {
+        let mut it = text.lines().filter(|l| l.starts_with(prefix.as_str()));
+        let first = it.next()?.to_string();
+        it.next().is_none().then_some(first)
+    };
+    let m = one(format!("MATRIX|spec=fgwilsonmat/{group}/2/{cols}/0/1/{jb}/0|"))?;
+    let mut ok = m.contains("|ok=1|");
+    let mut lines = vec![m];
+    for (mode, tag) in [(0, "exact"), (1, "interval")] {
+        lines.push(one(format!("COUNT|spec=fgwilsoncountq2/{group}/2/{cols}/0/1/{jb}/0/{je}/{tlo}/{mode}|"))?);
+        lines.push(one(format!("COUNT|spec=fgwilsoncountq2/{group}/2/{cols}/0/1/{jb}/0/{je}/{thi}/{mode}|"))?);
+        let s = one(format!("S1|group={name}|r={rn}/{rd}|mode={tag}|"))?;
+        ok &= s.contains("|reproduces_sturmrs=1|");
+        lines.push(s);
+    }
+    Some((lines, ok))
+}
+
+/// Split replay (ADDENDUM3.md): the S1 lines of sealed package `si`, or of its bracket `bi` ("si" or "si:bi"),
+/// recomputed through the server (`live`) or read from the file named by Z2O_S1_FROM. True when every line passes.
+fn s1_part(c: &mut Client, part: &str, live: bool) -> bool {
+    let mut it = part.split(':');
+    let Some(si) = it.next().and_then(|v| v.parse::<usize>().ok()).filter(|&v| v < SEALED.len()) else {
+        return false;
+    };
+    let bi = it.next().map(|v| v.parse::<usize>().ok());
+    if bi == Some(None) || it.next().is_some() {
+        return false;
+    }
+    let bi = bi.flatten();
+    let (path, sha, group, cols, je, name) = SEALED[si];
+    let (sealed_ok, text) = read_sealed(path, sha);
+    let brackets: Vec<(i128, i128, i128, i128)> = text
+        .lines()
+        .filter(|l| l.starts_with("ENERGY0|"))
+        .filter_map(|l| {
+            let (rn, rd) = field(l, "r=")?.split_once('/')?;
+            Some((rn.parse().ok()?, rd.parse().ok()?, field(l, "T_lo=")?.parse().ok()?, field(l, "T_hi=")?.parse().ok()?))
+        })
+        .collect();
+    let rec = if live { String::new() } else { std::fs::read_to_string(std::env::var("Z2O_S1_FROM").unwrap_or_default()).unwrap_or_default() };
+    let mut ok = sealed_ok && brackets.len() == 4 && bi.map_or(true, |b| b < brackets.len());
+    for (k, &(rn, rd, tlo, thi)) in brackets.iter().enumerate() {
+        if bi.is_some_and(|b| b != k) {
+            continue;
+        }
+        if !live {
+            match recorded_bracket(&rec, (group, cols, je, name), (rn, rd, tlo, thi)) {
+                Some((lines, pass)) => {
+                    ok &= pass;
+                    c.out.extend(lines);
+                }
+                None => ok = false,
+            }
+            continue;
+        }
+        let jb = je * rn / rd;
+        let mspec = format!("fgwilsonmat/{group}/2/{cols}/0/1/{jb}/0");
+        if !c.matrix_spec(&mspec) {
+            ok = false;
+            continue;
+        }
+        for mode in [0, 1] {
+            let lo = c.count_spec(&format!("fgwilsoncountq2/{group}/2/{cols}/0/1/{jb}/0/{je}/{tlo}/{mode}"));
+            let hi = c.count_spec(&format!("fgwilsoncountq2/{group}/2/{cols}/0/1/{jb}/0/{je}/{thi}/{mode}"));
+            let pass = lo == Some(0) && hi.is_some_and(|v| v >= 1);
+            ok &= pass;
+            c.out.push(format!("S1|group={name}|r={rn}/{rd}|mode={}|negative_at_T_lo={}|negative_at_T_hi={}|reproduces_sturmrs={}|json=0", if mode == 0 { "exact" } else { "interval" }, lo.map_or(-1, |v| v), hi.map_or(-1, |v| v), u8::from(pass)));
+        }
+    }
+    ok
+}
+
 fn main() {
     let port: u16 = std::env::args().nth(1).and_then(|p| p.parse().ok()).unwrap_or(0);
     let mut c = Client { port, out: Vec::new(), cache: BTreeMap::new() };
+    let part = std::env::var("Z2O_PART").unwrap_or_default();
+    if !part.is_empty() {
+        let ok = match part.split_once(':') {
+            Some(("s1", p)) => s1_part(&mut c, p, true),
+            Some(("s1rec", p)) => s1_part(&mut c, p, false),
+            _ => false,
+        };
+        for l in &c.out {
+            println!("{l}");
+        }
+        std::process::exit(if ok { 0 } else { 1 });
+    }
+    let s1_from = std::env::var("Z2O_S1_FROM").unwrap_or_default();
     c.out.push(format!("Z2O|group=2O|electric_set=(1+-i)/r2,(1+-j)/r2,(1+-k)/r2|geometry=S2_open_2x3|field=Q(sqrt2)|JE={JE}|lambda=LAM/JE={LAM}/{JE}|r=1/27,1/9,1/3,1|counter=sturmq2_interval|json=0"));
 
     // G1-G3
@@ -427,6 +524,7 @@ fn main() {
 
     // S1: sturmq2 exact and interval against every sealed E0(0) bracket
     let mut s1 = true;
+    let s1_text = if s1_from.is_empty() { String::new() } else { std::fs::read_to_string(&s1_from).unwrap_or_default() };
     for (path, sha, group, cols, je, name) in SEALED {
         let (sealed_ok, text) = read_sealed(path, sha);
         s1 &= sealed_ok;
@@ -440,6 +538,17 @@ fn main() {
             .collect();
         s1 &= brackets.len() == 4;
         for (rn, rd, tlo, thi) in brackets {
+            if !s1_from.is_empty() {
+                // main job of the split replay (ADDENDUM3.md): the recorded S1 lines in place, recomputed by the part jobs
+                match recorded_bracket(&s1_text, (group, cols, je, name), (rn, rd, tlo, thi)) {
+                    Some((lines, ok)) => {
+                        s1 &= ok;
+                        c.out.extend(lines);
+                    }
+                    None => s1 = false,
+                }
+                continue;
+            }
             let jb = je * rn / rd;
             let mspec = format!("fgwilsonmat/{group}/2/{cols}/0/1/{jb}/0");
             if !c.matrix_spec(&mspec) {
