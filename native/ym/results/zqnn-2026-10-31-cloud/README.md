@@ -76,7 +76,8 @@ Every ladder U lies above the sealed certified lower end, as it must.
 
 ## Replay and integrity chain
 
-`run.sh` checks the prediction and addendum seals, builds the native/ym workspace and the driver with Rust
+`run.sh` reproduced `RESULT.hbp` byte for byte on a fresh build and a fresh server ROOT (about 7 minutes).
+It checks the prediction and addendum seals, builds the native/ym workspace and the driver with Rust
 1.81, runs clippy, starts `hebc_ym_http0 serve` on a fresh ROOT, runs everything through it and checks byte
 identity with `RESULT.hbp`. `SHA256SUMS` covers every other file. `ZQNN.hbi` holds the chained `EMIT` rows
 (`pid[0] = sha16("EMITTER-SEED|SUN-ZQNN-2026-10-31-CLOUD")`, `pid[n] = sha16(pid[n-1]|name)`), and
