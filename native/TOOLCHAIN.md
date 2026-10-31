@@ -20,6 +20,11 @@ up in its diff.
 - `ym/crates/fgroup`, 2T milestone: Eisenstein-integer (Z[w]) characters, the binary tetrahedral group 2T from
   Hurwitz quaternions, series method 2 (gauge-orbit basis with the spectral polynomial), characteristic
   polynomials in big integers; backend accepts GROUP 3 and series METHOD 2.
+- `ym/crates/fgroup`, 2O milestone: characters and the fundamental character in a quadratic field (`Alg`,
+  `Field`: Eisenstein, sqrt2), the binary octahedral group 2O from exact Z[sqrt2] quaternions, fgconf's "QF"
+  exchange format for algebraic diagonals, Q(sqrt2) series in fgwser, and `sturmq2` (exact LDL^T over a real
+  quadratic field, and the sturmrs interval algorithm with sqrt2 enclosed in [L, L + 1] / 10^80); backend accepts
+  GROUP 4 and the job kind `fgwilsoncountq2` (MODE 0 exact, 1 interval).
 
 The S3 packages `native/ym/results/zconfcert-2026-10-30-cloud` (certified static-charge energies) and
 `native/ym/results/zwilson-2026-10-30-cloud` (certified spatial Wilson loops) are copied unchanged, at their

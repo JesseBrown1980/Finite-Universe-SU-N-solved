@@ -11,11 +11,15 @@
 //!   of the irrep link energies): E^-1 b = -q(E) b / m(0), m(x) = m(0) + x q(x), with an exact residual check.
 //! METHOD 2: gauge-orbit basis with Gauss weights and the same spectral polynomial (E is W-self-adjoint, so a
 //!   W-orthogonal b lies in the range of E and q(E) b stays there), with the exact residual check.
-//! usage: fgwser GROUP ROWS COLS METHOD ORDER        (GROUP 1 = S3, 2 = Q8, 3 = 2T; METHOD 0, 1, 2)        json=0
+//! Quadratic fields (2O: sqrt2): M and W take values x + y theta, so the perturbation vectors are pairs
+//! p + q theta of rationals; E is an integer matrix, so every solve acts on the two rational components
+//! separately. The spectral candidate set is closed under theta -> conjugate, so its polynomial is integer.
+//! Values with q = 0 print exactly as rationals "n/d"; otherwise as "n/d+n'/d'<theta>".
+//! usage: fgwser GROUP ROWS COLS METHOD ORDER        (GROUP 1 = S3, 2 = Q8, 3 = 2T, 4 = 2O; METHOD 0, 1, 2)        json=0
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic, clippy::float_cmp, clippy::cast_precision_loss)]
 
-use fgroup::{basis, group, strip, Basis, Sys};
+use fgroup::{basis, group, strip, Alg, Basis, Field, Sys};
 use num_bigint::BigInt;
 use num_integer::Integer;
 use num_traits::{One, Signed, Zero};
@@ -60,6 +64,55 @@ impl R {
     }
     fn show(&self) -> String {
         format!("{}/{}", self.n, self.d)
+    }
+}
+
+/// p + q theta with rational p, q (theta^2 = fp + fq theta)
+#[derive(Clone, PartialEq, Debug)]
+struct R2 {
+    a: R,
+    b: R,
+}
+
+impl R2 {
+    fn rat(a: R) -> R2 {
+        R2 { a, b: R::zero() }
+    }
+    fn alg(v: Alg) -> R2 {
+        R2 { a: R::int(v.x), b: R::int(v.y) }
+    }
+    fn zero() -> R2 {
+        R2::rat(R::zero())
+    }
+    fn add(&self, o: &R2) -> R2 {
+        R2 { a: self.a.add(&o.a), b: self.b.add(&o.b) }
+    }
+    fn sub(&self, o: &R2) -> R2 {
+        R2 { a: self.a.sub(&o.a), b: self.b.sub(&o.b) }
+    }
+    fn mul(&self, o: &R2, f: Field) -> R2 {
+        let bb = self.b.mul(&o.b);
+        R2 { a: self.a.mul(&o.a).add(&bb.mul(&R::int(f.p))), b: self.a.mul(&o.b).add(&self.b.mul(&o.a)).add(&bb.mul(&R::int(f.q))) }
+    }
+    fn mul_r(&self, r: &R) -> R2 {
+        R2 { a: self.a.mul(r), b: self.b.mul(r) }
+    }
+    /// division through the conjugate: (p + q t)^-1 = ((p + q fq) - q t) / (p^2 + p q fq - q^2 fp)
+    fn div(&self, o: &R2, f: Field) -> R2 {
+        let conj = R2 { a: o.a.add(&o.b.mul(&R::int(f.q))), b: R::zero().sub(&o.b) };
+        let norm = o.a.mul(&o.a).add(&o.a.mul(&o.b).mul(&R::int(f.q))).sub(&o.b.mul(&o.b).mul(&R::int(f.p)));
+        let num = self.mul(&conj, f);
+        R2 { a: num.a.div(&norm), b: num.b.div(&norm) }
+    }
+    fn is_zero(&self) -> bool {
+        self.a.is_zero() && self.b.is_zero()
+    }
+    fn show(&self, f: Field) -> String {
+        if self.b.is_zero() {
+            self.a.show()
+        } else {
+            format!("{}{}{}", self.a.show(), if self.b.n.is_negative() { "" } else { "+" }, format_args!("{}{}", self.b.show(), f.theta))
+        }
     }
 }
 
@@ -171,13 +224,32 @@ fn main() {
         1 => "B_config_spectral",
         _ => "A2_orbit_spectral",
     };
-    // spectral polynomial over every possible nonzero electric eigenvalue
-    let mut sums: BTreeSet<i64> = BTreeSet::from([0]);
-    let link_e: BTreeSet<i64> = (0..g.chars.len()).filter_map(|k| g.e_irrep(k)).collect();
+    // spectral polynomial over every possible nonzero electric eigenvalue: all sums over the links of the irrep
+    // link energies (algebraic integers x + y theta), closed under conjugation; its coefficients are integers
+    let f0 = g.field;
+    let link_e: BTreeSet<(i64, i64)> = (0..g.chars.len()).filter_map(|k| g.e_irrep(k)).map(|e| (e.x, e.y)).collect();
+    let mut sums: BTreeSet<(i64, i64)> = BTreeSet::from([(0, 0)]);
     for _ in 0..links.len() {
-        sums = sums.iter().flat_map(|s| link_e.iter().map(move |e| s + e)).collect();
+        sums = sums.iter().flat_map(|s| link_e.iter().map(move |e| (s.0 + e.0, s.1 + e.1))).collect();
     }
-    let lambdas: Vec<i64> = sums.into_iter().filter(|&v| v != 0).collect();
+    let conj = |v: (i64, i64)| (v.0 + v.1 * f0.q, -v.1);
+    let closed: BTreeSet<(i64, i64)> = sums.iter().flat_map(|&v| [v, conj(v)]).collect();
+    let lambdas: Vec<(i64, i64)> = closed.into_iter().filter(|&v| v != (0, 0)).collect();
+    // multiply out prod (x - lambda) with coefficients x + y theta in big integers
+    let mut poly2: Vec<(BigInt, BigInt)> = vec![(BigInt::one(), BigInt::zero())];
+    for &(lx, ly) in &lambdas {
+        let mut np = vec![(BigInt::zero(), BigInt::zero()); poly2.len() + 1];
+        for (i, c) in poly2.iter().enumerate() {
+            np[i + 1].0 += &c.0;
+            np[i + 1].1 += &c.1;
+            // c * (-lambda) = -(c0 lx + c1 ly p) - (c0 ly + c1 lx + c1 ly q) theta
+            np[i].0 -= &c.0 * lx + &c.1 * ly * f0.p;
+            np[i].1 -= &c.0 * ly + &c.1 * lx + &c.1 * ly * f0.q;
+        }
+        poly2 = np;
+    }
+    let poly_rational = poly2.iter().all(|c| c.1.is_zero());
+    let poly: Vec<BigInt> = poly2.into_iter().map(|c| c.0).collect();
     let solver: Box<dyn Solver> = if elimination {
         match elim(&bs) {
             Some(e) => Box::new(e),
@@ -187,37 +259,35 @@ fn main() {
             }
         }
     } else {
-        let mut poly = vec![BigInt::one()];
-        for &l in &lambdas {
-            // multiply by (x - l)
-            let mut np = vec![BigInt::zero(); poly.len() + 1];
-            for (i, c) in poly.iter().enumerate() {
-                np[i + 1] += c;
-                np[i] -= c * l;
-            }
-            poly = np;
+        if !poly_rational {
+            println!("FGSERIES|result=FAIL|reason=spectral_polynomial_not_rational|json=0");
+            std::process::exit(2);
         }
         Box::new(Spectral { e: &bs.e, a: poly })
     };
-    let mag: Vec<R> = bs.reps.iter().map(|q| R::int(sys.magnetic(&sys.raw(q)))).collect();
-    let dot = |x: &[R], y: &[R]| -> R { (0..n).fold(R::zero(), |acc, i| acc.add(&x[i].mul(&y[i]).mul(&R::int(bs.w[i])))) };
+    let f = g.field;
+    let mag: Vec<R2> = bs.reps.iter().map(|q| R2::alg(sys.magnetic(&sys.raw(q)))).collect();
+    let dot = |x: &[R2], y: &[R2]| -> R2 { (0..n).fold(R2::zero(), |acc, i| acc.add(&x[i].mul(&y[i], f).mul_r(&R::int(bs.w[i])))) };
     let n0 = R::int(bs.w.iter().sum());
-    let mut psi: Vec<Vec<R>> = vec![vec![R::int(1); n]];
-    let mut ek: Vec<R> = vec![R::zero()];
+    let mut psi: Vec<Vec<R2>> = vec![vec![R2::rat(R::int(1)); n]];
+    let mut ek: Vec<R2> = vec![R2::zero()];
     let mut solved = true;
     for k in 1..=order {
-        let mp: Vec<R> = (0..n).map(|i| mag[i].mul(&psi[k - 1][i])).collect();
-        ek.push(dot(&psi[0], &mp).div(&n0));
-        let mut b: Vec<R> = mp.iter().map(|v| R::zero().sub(v)).collect();
+        let mp: Vec<R2> = (0..n).map(|i| mag[i].mul(&psi[k - 1][i], f)).collect();
+        let e = dot(&psi[0], &mp);
+        ek.push(R2 { a: e.a.div(&n0), b: e.b.div(&n0) });
+        let mut b: Vec<R2> = mp.iter().map(|v| R2::zero().sub(v)).collect();
         for j in 1..=k {
             for (bi, pv) in b.iter_mut().zip(psi[k - j].iter()) {
-                *bi = bi.add(&ek[j].mul(pv));
+                *bi = bi.add(&ek[j].mul(pv, f));
             }
         }
         solved &= dot(&psi[0], &b).is_zero();
-        match solver.solve(&b) {
-            Some(x) => psi.push(x),
-            None => {
+        let ba: Vec<R> = b.iter().map(|v| v.a.clone()).collect();
+        let bb: Vec<R> = b.iter().map(|v| v.b.clone()).collect();
+        match (solver.solve(&ba), solver.solve(&bb)) {
+            (Some(xa), Some(xb)) => psi.push(xa.into_iter().zip(xb).map(|(a, b)| R2 { a, b }).collect()),
+            _ => {
                 solved = false;
                 break;
             }
@@ -235,28 +305,28 @@ fn main() {
     if !(solved && ortho) {
         std::process::exit(2);
     }
-    let energies: Vec<String> = ek.iter().skip(1).map(R::show).collect();
+    let energies: Vec<String> = ek.iter().skip(1).map(|v| v.show(f)).collect();
     println!("FGSERIES_ENERGY|group={}|E_k={}|json=0", g.name, energies.join(","));
-    let dser: Vec<R> = (0..=order).map(|k| (0..=k).fold(R::zero(), |acc, j| acc.add(&dot(&psi[j], &psi[k - j])))).collect();
+    let dser: Vec<R2> = (0..=order).map(|k| (0..=k).fold(R2::zero(), |acc, j| acc.add(&dot(&psi[j], &psi[k - j])))).collect();
     for x1 in 1..cols {
-        let wv: Vec<R> = bs.reps.iter().map(|q| R::int(sys.wilson(&sys.raw(q), 0, x1))).collect();
-        let nser: Vec<R> = (0..=order)
+        let wv: Vec<R2> = bs.reps.iter().map(|q| R2::alg(sys.wilson(&sys.raw(q), 0, x1))).collect();
+        let nser: Vec<R2> = (0..=order)
             .map(|k| {
-                (0..=k).fold(R::zero(), |acc, j| {
-                    let wy: Vec<R> = (0..n).map(|i| wv[i].mul(&psi[k - j][i])).collect();
+                (0..=k).fold(R2::zero(), |acc, j| {
+                    let wy: Vec<R2> = (0..n).map(|i| wv[i].mul(&psi[k - j][i], f)).collect();
                     acc.add(&dot(&psi[j], &wy))
                 })
             })
             .collect();
-        let mut c: Vec<R> = Vec::new();
+        let mut c: Vec<R2> = Vec::new();
         for k in 0..=order {
             let mut v = nser[k].clone();
             for j in 1..=k {
-                v = v.sub(&dser[j].mul(&c[k - j]));
+                v = v.sub(&dser[j].mul(&c[k - j], f));
             }
-            c.push(v.div(&dser[0]));
+            c.push(v.div(&dser[0], f));
         }
-        let cs: Vec<String> = c.iter().map(R::show).collect();
+        let cs: Vec<String> = c.iter().map(|v| v.show(f)).collect();
         println!("FGSERIES|group={}|loop=1x{x1}|method={method}|c_k={}|json=0", g.name, cs.join(","));
     }
 }
