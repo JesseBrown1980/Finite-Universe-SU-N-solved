@@ -46,10 +46,11 @@
 //!   wilsonmat/ROWS/COLS/X0/X1/JB/LAM              build ROOT/matrices/wil_*.matrix (ymconf CH = 2)
 //!   wilsoncount/ROWS/COLS/X0/X1/JB/LAM/JE/T       sturmrs at T with JE, JB = 1 (r = JB/JE, lambda = LAM/JE)
 //!   wilsonseries/ROWS/COLS/METHOD/ORDER           exact strong-coupling series (ymwser; 0 orbit, 1 config)
-//! Finite-group lane (fgroup crate; GROUP 1 = S3, 2 = Q8, 3 = 2T; open strips, rectangle on rows 0..1):
+//! Finite-group lane (fgroup crate; GROUP 1 = S3, 2 = Q8, 3 = 2T, 4 = 2O; open strips, rectangle on rows 0..1):
 //!   fgcheck/GROUP/ROWS/COLS                       group axioms, characters, electric spectrum, Gauss law
 //!   fgwilsonmat/GROUP/ROWS/COLS/X0/X1/JB/LAM      build ROOT/matrices/fgw_*.matrix (fgconf Wilson mode)
 //!   fgwilsoncount/GROUP/ROWS/COLS/X0/X1/JB/LAM/JE/T   sturmrs at T with JE, JB = 1
+//!   fgwilsoncountq2/GROUP/ROWS/COLS/X0/X1/JB/LAM/JE/T/MODE   sturmq2 at T (MODE 0 exact, 1 interval)
 //!   fgwilsonseries/GROUP/ROWS/COLS/METHOD/ORDER   exact series (fgwser; 0 orbit elimination, 1 config spectral,
 //!                                                 2 orbit spectral)
 //! Every other kind takes a sector-mode prefix: none (zero momentum), r (reflections
@@ -115,7 +116,7 @@ impl Spec {
     }
 }
 
-const CONF_KINDS: [&str; 10] = ["confmat", "confcount", "zconf", "wilsonmat", "wilsoncount", "wilsonseries", "fgcheck", "fgwilsonmat", "fgwilsoncount", "fgwilsonseries"];
+const CONF_KINDS: [&str; 11] = ["confmat", "confcount", "zconf", "wilsonmat", "wilsoncount", "wilsonseries", "fgcheck", "fgwilsonmat", "fgwilsoncount", "fgwilsonseries", "fgwilsoncountq2"];
 
 fn parse_conf(kind: String, nums: Vec<i64>) -> Result<Spec, String> {
     if kind.starts_with("fg") {
@@ -123,18 +124,19 @@ fn parse_conf(kind: String, nums: Vec<i64>) -> Result<Spec, String> {
             "fgcheck" => 3,
             "fgwilsonmat" => 7,
             "fgwilsoncount" => 9,
+            "fgwilsoncountq2" => 10,
             _ => 5,
         };
         if nums.len() != want {
             return Err(format!("{kind} needs {want} integer fields"));
         }
-        if !(1..=3).contains(&nums[0]) || !(2..=3).contains(&nums[1]) || !(2..=4).contains(&nums[2]) {
+        if !(1..=4).contains(&nums[0]) || !(2..=3).contains(&nums[1]) || !(2..=4).contains(&nums[2]) {
             return Err("finite group or strip geometry out of range".into());
         }
         let ok = match kind.as_str() {
             "fgcheck" => true,
             "fgwilsonseries" => (0..=2).contains(&nums[3]) && (1..=6).contains(&nums[4]),
-            _ => nums[1] == 2 && 0 <= nums[3] && nums[3] < nums[4] && nums[4] < nums[2] && nums[5] >= 0 && (want == 7 || nums[7] > 0),
+            _ => nums[1] == 2 && 0 <= nums[3] && nums[3] < nums[4] && nums[4] < nums[2] && nums[5] >= 0 && (want == 7 || nums[7] > 0) && (want != 10 || (0..=1).contains(&nums[9])),
         };
         if !ok {
             return Err("finite-group job fields out of range".into());
@@ -568,6 +570,13 @@ fn execute(root: &Path, s: &Spec) -> Result<(String, Vec<(String, String)>), Str
             Ok((out, meta))
         }
         "fgwilsonseries" => run_tool("fgwser", &[st(0), st(1), st(2), st(3), st(4)], &[]),
+        "fgwilsoncountq2" => {
+            let mp = checked_fgw_matrix(root, s)?;
+            let mode = if n[9] == 1 { "interval" } else { "exact" };
+            let (mut out, meta) = run_tool("sturmq2", &[mp.display().to_string(), st(7), "1".into(), st(8), mode.into()], &[])?;
+            out.push_str(&format!("INPUT_MATRIX|sha256={}|file={}|json=0\n", file_sha(&mp)?, mp.file_name().and_then(|f| f.to_str()).unwrap_or("")));
+            Ok((out, meta))
+        }
         _ => Err("unknown kind".into()),
     }
 }

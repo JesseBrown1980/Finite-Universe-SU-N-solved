@@ -41,7 +41,9 @@ jobs:
   replay:
     name: Replay ${{ matrix.package }}
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # z2o: 360 minutes, the reviewing seat's decision for this package (its run takes about six hours on one
+    # 2.1 GHz cloud core, mostly S1's eight exact Q8 counts and X1's two exact 2O counts); every other package 90.
+    timeout-minutes: ${{ matrix.package == 'native/ym/results/z2o-2026-10-30-cloud' && 360 || 90 }}
     strategy:
       fail-fast: false
       matrix:
@@ -51,6 +53,7 @@ jobs:
           - native/ym/results/zwilson-2026-10-30-cloud
           - native/ym/results/zq8-2026-10-30-cloud
           - native/ym/results/zt2-2026-10-30-cloud
+          - native/ym/results/z2o-2026-10-30-cloud
     steps:
       - uses: actions/checkout@v4
       - name: Rust 1.81 with clippy

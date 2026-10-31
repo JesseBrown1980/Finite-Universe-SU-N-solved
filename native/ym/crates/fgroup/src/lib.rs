@@ -1,6 +1,6 @@
 //! fgroup: finite-group lattice gauge lane for the SU(N) programme. Group data (S3 for regression against
 //! the sealed S3 packages, Q8 from Gaussian-integer matrices, 2T from Hurwitz quaternions with Z[w]
-//! characters), the open ROWS x COLS strip with a comb gauge
+//! characters, 2O from Z[sqrt2] quaternions with Z[sqrt2] characters), the open ROWS x COLS strip with a comb gauge
 //! tree, gauge-orbit and configuration bases, the electric operator E = sum over links and g in S of
 //! (1 - L_g), the magnetic diagonal M = sum over plaquettes (2 - chi_f(U_p)) and rectangular Wilson loops.
 //! Integer arithmetic only.
@@ -9,34 +9,57 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-/// Eisenstein integer x + y w, w^2 + w + 1 = 0 (exact pairs; integers have y = 0).
+/// Quadratic field of the characters: theta^2 = p + q theta (Eisenstein w: p = -1, q = -1; sqrt2: p = 2,
+/// q = 0; golden ratio: p = 1, q = 1). Groups with integer characters use the Eisenstein field with y = 0.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Zw {
+pub struct Field {
+    pub p: i64,
+    pub q: i64,
+    /// name of theta in printed values
+    pub theta: &'static str,
+}
+
+pub const EISENSTEIN: Field = Field { p: -1, q: -1, theta: "w" };
+pub const SQRT2: Field = Field { p: 2, q: 0, theta: "r2" };
+
+/// Algebraic integer x + y theta of the group's field (exact pairs; rational integers have y = 0).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Alg {
     pub x: i64,
     pub y: i64,
 }
 
-impl Zw {
-    pub const fn int(x: i64) -> Zw {
-        Zw { x, y: 0 }
+impl Alg {
+    pub const fn int(x: i64) -> Alg {
+        Alg { x, y: 0 }
     }
-    pub fn plus(self, o: Zw) -> Zw {
-        Zw { x: self.x + o.x, y: self.y + o.y }
+    pub fn plus(self, o: Alg) -> Alg {
+        Alg { x: self.x + o.x, y: self.y + o.y }
     }
-    /// (a + b w)(c + d w) = (ac - bd) + (ad + bc - bd) w
-    pub fn times(self, o: Zw) -> Zw {
-        Zw { x: self.x * o.x - self.y * o.y, y: self.x * o.y + self.y * o.x - self.y * o.y }
+    pub fn minus(self, o: Alg) -> Alg {
+        Alg { x: self.x - o.x, y: self.y - o.y }
     }
-    /// complex conjugate: w -> w^2 = -1 - w
-    pub fn conj(self) -> Zw {
-        Zw { x: self.x - self.y, y: -self.y }
+    pub fn scale(self, k: i64) -> Alg {
+        Alg { x: self.x * k, y: self.y * k }
     }
-    /// w^k
-    pub fn w_pow(k: i64) -> Zw {
+    /// (a + b t)(c + d t) = (ac + bd p) + (ad + bc + bd q) t
+    pub fn times(self, o: Alg, f: Field) -> Alg {
+        Alg { x: self.x * o.x + self.y * o.y * f.p, y: self.x * o.y + self.y * o.x + self.y * o.y * f.q }
+    }
+    /// w^k in the Eisenstein field
+    pub fn w_pow(k: i64) -> Alg {
         match k.rem_euclid(3) {
-            0 => Zw::int(1),
-            1 => Zw { x: 0, y: 1 },
-            _ => Zw { x: -1, y: -1 },
+            0 => Alg::int(1),
+            1 => Alg { x: 0, y: 1 },
+            _ => Alg { x: -1, y: -1 },
+        }
+    }
+    /// printed value: "x" when y = 0, otherwise "x+y<theta>" / "x-y<theta>"
+    pub fn show(self, f: Field) -> String {
+        if self.y == 0 {
+            self.x.to_string()
+        } else {
+            format!("{}{}{}{}", self.x, if self.y < 0 { "-" } else { "+" }, self.y.abs(), f.theta)
         }
     }
 }
@@ -49,10 +72,12 @@ pub struct FGroup {
     pub inv: Vec<u8>,
     /// electric set S (closed under inverses, a union of conjugacy classes)
     pub electric: Vec<u8>,
-    /// fundamental (Wilson-loop and plaquette) character, real and integer valued
-    pub chi_f: Vec<i64>,
-    /// irreducible characters (rows), Eisenstein-integer valued, and dimensions
-    pub chars: Vec<Vec<Zw>>,
+    /// field of the character values
+    pub field: Field,
+    /// fundamental (Wilson-loop and plaquette) character, real, in the group's field
+    pub chi_f: Vec<Alg>,
+    /// irreducible characters (rows) in the group's field, and dimensions
+    pub chars: Vec<Vec<Alg>>,
     pub dims: Vec<i64>,
     /// index of the fundamental irrep in `chars`
     pub fund: usize,
@@ -65,12 +90,12 @@ impl FGroup {
     pub fn i(&self, a: u8) -> u8 {
         self.inv[a as usize]
     }
-    /// electric eigenvalue of irrep k: |S| - sum_{g in S} chi_k(g) / d_k (exact; the sum must be a rational
-    /// integer, which holds because S is inverse-closed, and divisible by d_k)
-    pub fn e_irrep(&self, k: usize) -> Option<i64> {
-        let s = self.electric.iter().fold(Zw::int(0), |a, &g| a.plus(self.chars[k][g as usize]));
+    /// electric eigenvalue of irrep k: |S| - sum_{g in S} chi_k(g) / d_k, an algebraic integer of the field
+    /// (exact; both components of the sum must be divisible by d_k)
+    pub fn e_irrep(&self, k: usize) -> Option<Alg> {
+        let s = self.electric.iter().fold(Alg::int(0), |a, &g| a.plus(self.chars[k][g as usize]));
         let d = self.dims[k];
-        (s.y == 0 && s.x % d == 0).then(|| self.electric.len() as i64 - s.x / d)
+        (s.x % d == 0 && s.y % d == 0).then(|| Alg { x: self.electric.len() as i64 - s.x / d, y: -s.y / d })
     }
 }
 
@@ -97,8 +122,9 @@ pub fn s3() -> FGroup {
         mul,
         inv,
         electric: vec![1, 2, 5],
-        chi_f: (0..6).map(std).collect(),
-        chars: vec![vec![Zw::int(1); 6], (0..6).map(|g| Zw::int(sign(g))).collect(), (0..6).map(|g| Zw::int(std(g))).collect()],
+        field: EISENSTEIN,
+        chi_f: (0..6).map(|g| Alg::int(std(g))).collect(),
+        chars: vec![vec![Alg::int(1); 6], (0..6).map(|g| Alg::int(sign(g))).collect(), (0..6).map(|g| Alg::int(std(g))).collect()],
         dims: vec![1, 1, 2],
         fund: 2,
     }
@@ -158,15 +184,16 @@ pub fn q8() -> FGroup {
     let inv = (0..n).map(|a| (0..n as u8).find(|&b| mul[a][b as usize] == 0).unwrap_or(255)).collect();
     let tr: Vec<i64> = ms.iter().map(|m| if m[0][0].1 + m[1][1].1 == 0 { m[0][0].0 + m[1][1].0 } else { i64::MIN }).collect();
     // 1-dimensional characters through Q8/{+-1} = {1, i, j, k}: +1 on the class pair named, -1 on the other two
-    let one_dim = |keep: usize| -> Vec<Zw> { (0..n).map(|g| Zw::int(if g / 2 == 0 || g / 2 == keep { 1 } else { -1 })).collect() };
+    let one_dim = |keep: usize| -> Vec<Alg> { (0..n).map(|g| Alg::int(if g / 2 == 0 || g / 2 == keep { 1 } else { -1 })).collect() };
     FGroup {
         name: "Q8",
         n,
         mul,
         inv,
         electric: vec![2, 3, 4, 5, 6, 7],
-        chi_f: tr.clone(),
-        chars: vec![vec![Zw::int(1); n], one_dim(1), one_dim(2), one_dim(3), tr.iter().map(|&v| Zw::int(v)).collect()],
+        field: EISENSTEIN,
+        chi_f: tr.iter().map(|&v| Alg::int(v)).collect(),
+        chars: vec![vec![Alg::int(1); n], one_dim(1), one_dim(2), one_dim(3), tr.iter().map(|&v| Alg::int(v)).collect()],
         dims: vec![1, 1, 1, 1, 2],
         fund: 4,
     }
@@ -214,7 +241,7 @@ pub fn t2() -> FGroup {
         }
     }
     let inv: Vec<u8> = (0..n).map(|x| (0..n as u8).find(|&y| mul[x][y as usize] == 0).unwrap_or(255)).collect();
-    let chi_f: Vec<i64> = el.iter().map(|q| q[0]).collect();
+    let chi_f: Vec<Alg> = el.iter().map(|q| Alg::int(q[0])).collect();
     // coset index k(g): g a^-k in Q8 (the first 8 elements), a = (1 + i + j + k)/2 = element 8
     let a = 8u8;
     let a_inv = inv[a as usize];
@@ -231,13 +258,13 @@ pub fn t2() -> FGroup {
             -1
         })
         .collect();
-    let one1: Vec<Zw> = coset.iter().map(|&k| Zw::w_pow(k)).collect();
-    let one2: Vec<Zw> = coset.iter().map(|&k| Zw::w_pow(2 * k)).collect();
+    let one1: Vec<Alg> = coset.iter().map(|&k| Alg::w_pow(k)).collect();
+    let one2: Vec<Alg> = coset.iter().map(|&k| Alg::w_pow(2 * k)).collect();
     // chi_3 = 4 Re^2 - 1 = a^2 - 1 in doubled coordinates
-    let three: Vec<Zw> = el.iter().map(|q| Zw::int(q[0] * q[0] - 1)).collect();
-    let fund: Vec<Zw> = chi_f.iter().map(|&v| Zw::int(v)).collect();
-    let two1: Vec<Zw> = (0..n).map(|g| fund[g].times(one1[g])).collect();
-    let two2: Vec<Zw> = (0..n).map(|g| fund[g].times(one2[g])).collect();
+    let three: Vec<Alg> = el.iter().map(|q| Alg::int(q[0] * q[0] - 1)).collect();
+    let fund: Vec<Alg> = chi_f.clone();
+    let two1: Vec<Alg> = (0..n).map(|g| fund[g].times(one1[g], EISENSTEIN)).collect();
+    let two2: Vec<Alg> = (0..n).map(|g| fund[g].times(one2[g], EISENSTEIN)).collect();
     let electric: Vec<u8> = (0..n as u8).filter(|&g| el[g as usize][0] == 1).collect();
     FGroup {
         name: "2T",
@@ -245,10 +272,83 @@ pub fn t2() -> FGroup {
         mul,
         inv,
         electric,
+        field: EISENSTEIN,
         chi_f,
-        chars: vec![vec![Zw::int(1); n], one1, one2, three, fund, two1, two2],
+        chars: vec![vec![Alg::int(1); n], one1, one2, three, fund, two1, two2],
         dims: vec![1, 1, 1, 3, 2, 2, 2],
         fund: 4,
+    }
+}
+
+/// Quaternion with doubled coordinates in Z[sqrt2]: q = (X + Y i + Z j + U k) / 2
+type Hq2 = [Alg; 4];
+
+/// exact Hamilton product of doubled Z[sqrt2] coordinates: 2 (p q) = (2p)(2q)/2, None if not divisible
+fn hmul2(p: &Hq2, q: &Hq2) -> Option<Hq2> {
+    let f = SQRT2;
+    let m = |a: Alg, b: Alg| a.times(b, f);
+    let [a1, b1, c1, d1] = *p;
+    let [a2, b2, c2, d2] = *q;
+    let r = [
+        m(a1, a2).minus(m(b1, b2)).minus(m(c1, c2)).minus(m(d1, d2)),
+        m(a1, b2).plus(m(b1, a2)).plus(m(c1, d2)).minus(m(d1, c2)),
+        m(a1, c2).minus(m(b1, d2)).plus(m(c1, a2)).plus(m(d1, b2)),
+        m(a1, d2).plus(m(b1, c2)).minus(m(c1, b2)).plus(m(d1, a2)),
+    ];
+    r.iter().all(|v| v.x % 2 == 0 && v.y % 2 == 0).then(|| [0, 1, 2, 3].map(|k| Alg { x: r[k].x / 2, y: r[k].y / 2 }))
+}
+
+/// The 48 elements of 2O as doubled Z[sqrt2] coordinates: the 24 of 2T in the t2_elements order, then
+/// (+-u +-v)/sqrt2 for the pairs (u, v) = (1,i), (1,j), (1,k), (i,j), (i,k), (j,k) with signs ++, +-, -+, --.
+pub fn o2_elements() -> Vec<Hq2> {
+    let mut v: Vec<Hq2> = t2_elements().iter().map(|q| q.map(Alg::int)).collect();
+    for (a, b) in [(0usize, 1usize), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)] {
+        for (sa, sb) in [(1i64, 1i64), (1, -1), (-1, 1), (-1, -1)] {
+            let mut e = [Alg::int(0); 4];
+            e[a] = Alg { x: 0, y: sa };
+            e[b] = Alg { x: 0, y: sb };
+            v.push(e);
+        }
+    }
+    v
+}
+
+/// 2O: multiplication table from exact Z[sqrt2] Hamilton products; chi_f = 2 Re(q) in Z[sqrt2]; characters
+/// trivial, sign (+1 on 2T, -1 off it), chi_2 (2 on Q8, -1 on 2T \ Q8, 0 off 2T), chi_3 = 4 Re^2 - 1,
+/// chi_3' = chi_3 sign, chi_f, chi_f' = chi_f sign, chi_4 = chi_f chi_2. Electric set: the six elements with
+/// Re(q) = 1/sqrt2.
+pub fn o2() -> FGroup {
+    let el = o2_elements();
+    let n = el.len();
+    let mut mul = vec![vec![255u8; n]; n];
+    for (x, p) in el.iter().enumerate() {
+        for (y, q) in el.iter().enumerate() {
+            if let Some(r) = hmul2(p, q) {
+                mul[x][y] = el.iter().position(|z| *z == r).map_or(255, |v| v as u8);
+            }
+        }
+    }
+    let inv: Vec<u8> = (0..n).map(|x| (0..n as u8).find(|&y| mul[x][y as usize] == 0).unwrap_or(255)).collect();
+    let f = SQRT2;
+    let chi_f: Vec<Alg> = el.iter().map(|q| q[0]).collect();
+    let sign: Vec<Alg> = (0..n).map(|g| Alg::int(if g < 24 { 1 } else { -1 })).collect();
+    let chi2: Vec<Alg> = (0..n).map(|g| Alg::int(if g < 8 { 2 } else if g < 24 { -1 } else { 0 })).collect();
+    let chi3: Vec<Alg> = el.iter().map(|q| q[0].times(q[0], f).minus(Alg::int(1))).collect();
+    let chi3p: Vec<Alg> = (0..n).map(|g| chi3[g].times(sign[g], f)).collect();
+    let chifp: Vec<Alg> = (0..n).map(|g| chi_f[g].times(sign[g], f)).collect();
+    let chi4: Vec<Alg> = (0..n).map(|g| chi_f[g].times(chi2[g], f)).collect();
+    let electric: Vec<u8> = (0..n as u8).filter(|&g| el[g as usize][0] == Alg { x: 0, y: 1 }).collect();
+    FGroup {
+        name: "2O",
+        n,
+        mul,
+        inv,
+        electric,
+        field: f,
+        chi_f: chi_f.clone(),
+        chars: vec![vec![Alg::int(1); n], sign, chi2, chi3, chi3p, chi_f, chifp, chi4],
+        dims: vec![1, 1, 2, 3, 3, 2, 2, 4],
+        fund: 5,
     }
 }
 
@@ -257,6 +357,7 @@ pub fn group(id: i64) -> Option<FGroup> {
         1 => Some(s3()),
         2 => Some(q8()),
         3 => Some(t2()),
+        4 => Some(o2()),
         _ => None,
     }
 }
@@ -343,11 +444,11 @@ impl Sys<'_> {
     pub fn key(&self, q: &[u8]) -> u64 {
         self.conjugates(q).into_iter().min().unwrap_or(0)
     }
-    pub fn magnetic(&self, l: &[u8]) -> i64 {
-        self.s.plaq.iter().map(|p| 2 - self.g.chi_f[self.g.m(self.g.m(self.g.m(l[p[0]], l[p[1]]), self.g.i(l[p[2]])), self.g.i(l[p[3]])) as usize]).sum()
+    pub fn magnetic(&self, l: &[u8]) -> Alg {
+        self.s.plaq.iter().fold(Alg::int(0), |acc, p| acc.plus(Alg::int(2).minus(self.g.chi_f[self.g.m(self.g.m(self.g.m(l[p[0]], l[p[1]]), self.g.i(l[p[2]])), self.g.i(l[p[3]])) as usize])))
     }
     /// chi_f of the rectangle on rows 0..1, columns x0..x1, counter-clockwise from (x0, 0)
-    pub fn wilson(&self, l: &[u8], x0: usize, x1: usize) -> i64 {
+    pub fn wilson(&self, l: &[u8], x0: usize, x1: usize) -> Alg {
         let s = self.s;
         let g = self.g;
         let mut u = 0u8;
