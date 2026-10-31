@@ -52,6 +52,8 @@
 //!   fgwilsoncount/GROUP/ROWS/COLS/X0/X1/JB/LAM/JE/T   sturmrs at T with JE, JB = 1
 //!   fgwilsonseries/GROUP/ROWS/COLS/METHOD/ORDER   exact series (fgwser; 0 orbit elimination, 1 config spectral,
 //!                                                 2 orbit spectral)
+//!   fgqnn/GROUP/ROWS/COLS/RNUM/RDEN/SEED/SWEEPS   the qutrit variational network (fgqnn): train from SEED
+//!                                                 (0 uniform, 1 identity) and print the exact upper bound
 //! Every other kind takes a sector-mode prefix: none (zero momentum), r (reflections
 //! only, every momentum), or tx / ty / td / ta (translations along one line, the
 //! sectors of V^K). Full space for a non-cyclic translation group by Mobius
@@ -115,7 +117,7 @@ impl Spec {
     }
 }
 
-const CONF_KINDS: [&str; 10] = ["confmat", "confcount", "zconf", "wilsonmat", "wilsoncount", "wilsonseries", "fgcheck", "fgwilsonmat", "fgwilsoncount", "fgwilsonseries"];
+const CONF_KINDS: [&str; 11] = ["confmat", "confcount", "zconf", "wilsonmat", "wilsoncount", "wilsonseries", "fgcheck", "fgwilsonmat", "fgwilsoncount", "fgwilsonseries", "fgqnn"];
 
 fn parse_conf(kind: String, nums: Vec<i64>) -> Result<Spec, String> {
     if kind.starts_with("fg") {
@@ -123,6 +125,7 @@ fn parse_conf(kind: String, nums: Vec<i64>) -> Result<Spec, String> {
             "fgcheck" => 3,
             "fgwilsonmat" => 7,
             "fgwilsoncount" => 9,
+            "fgqnn" => 7,
             _ => 5,
         };
         if nums.len() != want {
@@ -133,6 +136,7 @@ fn parse_conf(kind: String, nums: Vec<i64>) -> Result<Spec, String> {
         }
         let ok = match kind.as_str() {
             "fgcheck" => true,
+            "fgqnn" => nums[3] >= 0 && nums[4] > 0 && (0..=1).contains(&nums[5]) && (1..=8).contains(&nums[6]),
             "fgwilsonseries" => (0..=2).contains(&nums[3]) && (1..=6).contains(&nums[4]),
             _ => nums[1] == 2 && 0 <= nums[3] && nums[3] < nums[4] && nums[4] < nums[2] && nums[5] >= 0 && (want == 7 || nums[7] > 0),
         };
@@ -568,6 +572,7 @@ fn execute(root: &Path, s: &Spec) -> Result<(String, Vec<(String, String)>), Str
             Ok((out, meta))
         }
         "fgwilsonseries" => run_tool("fgwser", &[st(0), st(1), st(2), st(3), st(4)], &[]),
+        "fgqnn" => run_tool("fgqnn", &[st(0), st(1), st(2), st(3), st(4), st(5), st(6)], &[]),
         _ => Err("unknown kind".into()),
     }
 }

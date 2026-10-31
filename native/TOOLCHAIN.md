@@ -21,6 +21,10 @@ up in its diff.
   Hurwitz quaternions, series method 2 (gauge-orbit basis with the spectral polynomial), characteristic
   polynomials in big integers; backend accepts GROUP 3 and series METHOD 2.
 
+- `ym/crates/fgroup`, zqnn: `fgqnn`, the qutrit variational network (v7 of
+  GGUF-files-operating-as-trained-quantum-neural-network-models) on the finite-group strips, giving exact
+  rational upper bounds on E0; backend job kind `fgqnn`.
+
 The S3 packages `native/ym/results/zconfcert-2026-10-30-cloud` (certified static-charge energies) and
 `native/ym/results/zwilson-2026-10-30-cloud` (certified spatial Wilson loops) are copied unchanged, at their
 original paths, so their `run.sh` files and seals are the sealed originals; here they rebuild this copy of the
