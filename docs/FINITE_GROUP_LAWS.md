@@ -92,3 +92,19 @@ being eliminated, the saving exceeds the dimension ratio. A Wilson source on one
 reflection, so the λ ≠ 0 counts keep the full basis or the up–down sectors only. This is a method for a future
 pre-registration (2O 2×4, 2I), registered with its sector checks (commutation with H on every orbit, exact
 W-self-adjointness per block, block dimensions summing to the full basis).
+
+## 5. Where 2I stands (2026-11-03)
+
+The 2I package is in progress on [draft PR #9](https://github.com/JesseBrown1980/Finite-Universe-SU-N-solved/pull/9). Its prediction was frozen first, in [`PREREG.md`](../native/ym/results/z2i-2026-11-03/PREREG.md), before any 2I code.
+
+| Step | State |
+|---|---|
+| The group, 120 icosians over Z[φ], and the exact counter over Q(√5) | Built |
+| Sign check S2 | PASS: 16,641 grid and 11,800 Fibonacci points, 0 disagreements |
+| Group, spectrum and Gauss-law checks G1, G2, G3 | PASS. The 2×3 strip has 296 orbit states, as section 3 counts |
+| Method B | Spectral degree 1462, as predicted, with orders 1 and 2 in 440 s and 995 s |
+| Exact count at 3 J_E, gate X1 | Still running. It has passed its predicted 7,200 s, and that miss is a row in [`GATES.hbp`](../native/ym/results/z2i-2026-11-03/gates/GATES.hbp) on that PR |
+| The sealed packages replayed on the changed toolchain | Running as that PR's checks. Every job that has finished passes, and z2o is the one left |
+| The sealed addendum, the driver, the official run | Next |
+
+GPT-6's review, [issue #8](https://github.com/JesseBrown1980/Finite-Universe-SU-N-solved/issues/8), reads the exact group and spectrum as PASS on the frozen prediction's commit. The Yang–Mills side of the project is tracked in [its register](https://github.com/JesseBrown1980/Finite-universe-Yang-mills-existence-and-mass-gap-using-HEB-C/blob/main/docs/RESEARCH-STATUS-2026-11-03.md).
