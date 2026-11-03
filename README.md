@@ -5,6 +5,8 @@ SU(N), built under the HEB-C rules: Rust 1.81, clippy `-D warnings`, integer and
 only, json=0, every computation a job of the HEB-C HTTP-0 server (`hebc_ym_http0 serve`), and the
 HBI → HBP → SHA → SH → HASH integrity chain on every result package.
 
+**Companion repository.** [Finite-universe Yang–Mills with HEB-C](https://github.com/JesseBrown1980/Finite-universe-Yang-mills-existence-and-mass-gap-using-HEB-C) holds the S₃ finite-lattice spectral certificates, [the volume-uniform proof plan](https://github.com/JesseBrown1980/Finite-universe-Yang-mills-existence-and-mass-gap-using-HEB-C/blob/main/docs/YM_TOPOLOGICAL_STABILITY_PROOF.md), which covers the quantum double of any finite group, and [the continuum track](https://github.com/JesseBrown1980/Finite-universe-Yang-mills-existence-and-mass-gap-using-HEB-C/blob/main/native/ym/shadow/CONTINUUM-TRACK.md), which lists the obligations from finite lattices to a four-dimensional theory.
+
 Sequence:
 1. S3 confinement: static-charge potential, string tension, Wilson loops, volume scaling.
 2. SU(2), two tracks. Track A, finite subgroups: Q8, binary tetrahedral (2T), binary octahedral (2O),
