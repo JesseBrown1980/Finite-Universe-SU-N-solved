@@ -9,7 +9,7 @@
 //!    the gauge-transformed raw configuration (tree links included) fixes into the same orbit, M and every
 //!    Wilson loop on rows 0..1 are unchanged, and the electric move targets are the same orbits with the same
 //!    multiplicities.
-//! usage: fgcheck GROUP ROWS COLS        (GROUP 1 = S3, 2 = Q8, 3 = 2T, 4 = 2O)        json=0
+//! usage: fgcheck GROUP ROWS COLS        (GROUP 1 = S3, 2 = Q8, 3 = 2T, 4 = 2O, 5 = 2I)        json=0
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic, clippy::float_cmp, clippy::cast_precision_loss)]
 

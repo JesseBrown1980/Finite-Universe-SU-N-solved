@@ -12,9 +12,11 @@
 //! MODE interval (z2o addendum 1): the sturmrs algorithm unchanged (entries as outward-rounded intervals of
 //! integers scaled by S = 10^80, Schur updates enclosed by floor and ceiling, a pivot only when its interval
 //! excludes zero, COMPLETE only when every pivot is decided, otherwise UNCERTAIN), with each theta part entering
-//! through sqrt2 in [L, L + 1] / S, L = isqrt(2 S^2) (the sqrt2 field only). For an integer matrix it is the
-//! same computation as sturmrs.
-//! usage: sturmq2 MATRIX JE JB T [exact|interval]        json=0
+//! through sqrt2 in [L, L + 1] / S, L = isqrt(2 S^2), or phi in [L, L + 1] / S, L = floor((S + isqrt(5 S^2)) / 2)
+//! (z2i; those two fields). For an integer matrix it is the same computation as sturmrs.
+//! MODE signcheck (z2i S2): the exact sign of a + b phi against a rational enclosure of phi, on a grid of small pairs
+//! and on consecutive Fibonacci pairs, where a + b phi is smallest in size.
+//! usage: sturmq2 MATRIX JE JB T [exact|interval]        sturmq2 signcheck        json=0
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic, clippy::float_cmp, clippy::cast_precision_loss)]
 
@@ -301,21 +303,22 @@ fn quotient(x: &Iv, y: &Iv, d: &Iv) -> Result<Iv, String> {
 }
 
 /// interval rows as in sturmrs (scale S = 10^80); theta parts through sqrt2 in [L, L + 1] / S
-type IntervalInput = (Vec<HashMap<usize, Iv>>, usize, bool);
+type IntervalInput = (Vec<HashMap<usize, Iv>>, usize, Option<(i64, i64)>);
 
 fn load_interval(path: &str, je: i64, jb: i64, tn: i64) -> Result<IntervalInput, String> {
     let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
     let mut toks = text.split_ascii_whitespace().peekable();
-    let mut algebraic = false;
+    let mut field = None;
     if toks.peek() == Some(&"QF") {
         toks.next();
         let p: i64 = toks.next().and_then(|t| t.parse().ok()).ok_or("bad QF P")?;
         let q: i64 = toks.next().and_then(|t| t.parse().ok()).ok_or("bad QF Q")?;
-        if (p, q) != (2, 0) {
-            return Err("interval mode supports the sqrt2 field only".into());
+        if (p, q) != (2, 0) && (p, q) != (1, 1) {
+            return Err("interval mode supports the sqrt2 and phi fields only".into());
         }
-        algebraic = true;
+        field = Some((p, q));
     }
+    let algebraic = field.is_some();
     let int = |t: Option<&str>| -> Result<i64, String> { t.and_then(|v| v.parse::<i64>().ok()).ok_or_else(|| "bad integer token".to_string()) };
     let n = usize::try_from(int(toks.next())?).map_err(|_| "bad n")?;
     let w: Vec<i64> = (0..n).map(|_| int(toks.next())).collect::<Result<_, _>>()?;
@@ -337,12 +340,17 @@ fn load_interval(path: &str, je: i64, jb: i64, tn: i64) -> Result<IntervalInput,
         return Err("malformed triples".into());
     }
     let scale = num_traits::pow(BigInt::from(10), 80);
-    let two_s2 = BigInt::from(2) * &scale * &scale;
-    let l = two_s2.sqrt();
-    // the enclosure sqrt2 in [L, L + 1] / S holds exactly: L^2 <= 2 S^2 < (L + 1)^2
-    if !(&l * &l <= two_s2 && (&l + 1) * (&l + 1) > two_s2) {
-        return Err("sqrt2 enclosure check failed".into());
-    }
+    let l = if field == Some((1, 1)) {
+        phi_lower(&scale)?
+    } else {
+        let two_s2 = BigInt::from(2) * &scale * &scale;
+        let l = two_s2.sqrt();
+        // the enclosure sqrt2 in [L, L + 1] / S holds exactly: L^2 <= 2 S^2 < (L + 1)^2
+        if !(&l * &l <= two_s2 && (&l + 1) * (&l + 1) > two_s2) {
+            return Err("sqrt2 enclosure check failed".into());
+        }
+        l
+    };
     let mut a: Vec<HashMap<usize, Iv>> = vec![HashMap::new(); n];
     let mut entries = 0usize;
     for t in rest.chunks_exact(3) {
@@ -364,7 +372,72 @@ fn load_interval(path: &str, je: i64, jb: i64, tn: i64) -> Result<IntervalInput,
         let old = a[k].get(&k).cloned().unwrap_or((BigInt::zero(), BigInt::zero()));
         a[k].insert(k, (old.0 + &dv + blo, old.1 + &dv + bhi));
     }
-    Ok((a, entries, algebraic))
+    Ok((a, entries, field))
+}
+
+/// L = floor(phi S), checked exactly: phi S is the positive root of x^2 - S x - S^2, so L^2 - S L - S^2 <= 0 < (L + 1)^2 - S (L + 1) - S^2
+fn phi_lower(scale: &BigInt) -> Result<BigInt, String> {
+    let five_s2 = BigInt::from(5) * scale * scale;
+    let l: BigInt = (scale + five_s2.sqrt()) / 2;
+    let value = |x: &BigInt| x * x - scale * x - scale * scale;
+    if value(&l).is_positive() || !value(&(&l + 1)).is_positive() {
+        return Err("phi enclosure check failed".into());
+    }
+    Ok(l)
+}
+
+/// z2i S2: E::sign in the phi field against an enclosure of phi: the sign the enclosure decides must equal it, and every
+/// nonzero pair must be decided. Grid |a|, |b| <= 64; then both signs of consecutive Fibonacci pairs (F_{n+1}, -F_n) up to 2^4096.
+fn signcheck() -> Result<String, String> {
+    let f = Fld { p: 1, q: 1 };
+    let bits = 8300u32;
+    let scale = num_traits::pow(BigInt::from(2), bits as usize);
+    let l = phi_lower(&scale)?;
+    let (mut disagree, mut undecided) = (0u64, 0u64);
+    let mut judge = |a: &BigInt, b: &BigInt| {
+        let (lo, hi) = if b.is_negative() { (a * &scale + b * (&l + 1), a * &scale + b * &l) } else { (a * &scale + b * &l, a * &scale + b * (&l + 1)) };
+        let want = if a.is_zero() && b.is_zero() {
+            Some(Ordering::Equal)
+        } else if lo.is_positive() {
+            Some(Ordering::Greater)
+        } else if hi.is_negative() {
+            Some(Ordering::Less)
+        } else {
+            None
+        };
+        let got = E { a: R::int(a.clone()), b: R::int(b.clone()) }.sign(f);
+        match want {
+            Some(w) if w == got => {}
+            Some(_) => disagree += 1,
+            None => undecided += 1,
+        }
+    };
+    let bound = 64i64;
+    let mut grid = 0u64;
+    for a in -bound..=bound {
+        for b in -bound..=bound {
+            judge(&BigInt::from(a), &BigInt::from(b));
+            grid += 1;
+        }
+    }
+    let limit = num_traits::pow(BigInt::from(2), 4096);
+    let (mut lo, mut hi) = (BigInt::one(), BigInt::one());
+    let mut fib = 0u64;
+    let mut max_bits = 0u64;
+    while hi <= limit {
+        judge(&hi, &(-&lo));
+        judge(&(-&hi), &lo);
+        fib += 2;
+        max_bits = hi.bits();
+        let next = &hi + &lo;
+        lo = hi;
+        hi = next;
+    }
+    let ok = disagree == 0 && undecided == 0;
+    Ok(format!(
+        "STURM-Q2-S2|result={}|field=QF_1_1|grid_bound={bound}|grid_pairs={grid}|fibonacci_pairs={fib}|fibonacci_max_bits={max_bits}|enclosure_bits={bits}|disagreements={disagree}|undecided={undecided}|json=0",
+        if ok { "PASS" } else { "FAIL" }
+    ))
 }
 
 /// the sturmrs interval LDL^T: (negative, positive, pivots, complete)
@@ -424,6 +497,9 @@ fn certify(a: &mut [HashMap<usize, Iv>]) -> Result<(usize, usize, usize, bool), 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let run = || -> Result<String, String> {
+        if args.len() == 2 && args[1] == "signcheck" {
+            return signcheck();
+        }
         if args.len() != 5 && args.len() != 6 {
             return Err("usage: sturmq2 MATRIX JE JB T [exact|interval]".into());
         }
@@ -444,15 +520,20 @@ fn main() {
                 ))
             }
             "interval" => {
-                let (mut a, entries, algebraic) = load_interval(&args[1], je, jb, tn)?;
+                let (mut a, entries, field) = load_interval(&args[1], je, jb, tn)?;
+                let (fname, enclosure) = match field {
+                    Some((1, 1)) => ("QF_1_1", "phi_enclosure=L^2-SL-S^2<=0<(L+1)^2-S(L+1)-S^2_VERIFIED"),
+                    Some(_) => ("QF_2_0", "sqrt2_enclosure=L^2<=2S^2<(L+1)^2_VERIFIED"),
+                    None => ("Q", "sqrt2_enclosure=L^2<=2S^2<(L+1)^2_VERIFIED"),
+                };
                 let n = a.len();
                 let (neg, pos, done, complete) = certify(&mut a)?;
                 let ms = t0.elapsed().as_millis();
                 Ok(format!(
-                    "STURM-Q2|result={}|status={}|mode=interval|field={}|JE={je}|JB={jb}|threshold={tn}/1000|scale_digits=80|sqrt2_enclosure=L^2<=2S^2<(L+1)^2_VERIFIED|states={n}|upper_entries={entries}|pivots={done}/{n}|negative={neg}|positive={pos}|elapsed_ms={ms}|json=0",
+                    "STURM-Q2|result={}|status={}|mode=interval|field={}|JE={je}|JB={jb}|threshold={tn}/1000|scale_digits=80|{enclosure}|states={n}|upper_entries={entries}|pivots={done}/{n}|negative={neg}|positive={pos}|elapsed_ms={ms}|json=0",
                     if complete { "PASS" } else { "FAIL" },
                     if complete { "COMPLETE" } else { "UNCERTAIN" },
-                    if algebraic { "QF_2_0" } else { "Q" }
+                    fname
                 ))
             }
             _ => Err("mode must be exact or interval".into()),

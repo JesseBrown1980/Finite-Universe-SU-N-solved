@@ -15,7 +15,7 @@
 //! p + q theta of rationals; E is an integer matrix, so every solve acts on the two rational components
 //! separately. The spectral candidate set is closed under theta -> conjugate, so its polynomial is integer.
 //! Values with q = 0 print exactly as rationals "n/d"; otherwise as "n/d+n'/d'<theta>".
-//! usage: fgwser GROUP ROWS COLS METHOD ORDER        (GROUP 1 = S3, 2 = Q8, 3 = 2T, 4 = 2O; METHOD 0, 1, 2)        json=0
+//! usage: fgwser GROUP ROWS COLS METHOD ORDER        (GROUP 1 = S3, 2 = Q8, 3 = 2T, 4 = 2O, 5 = 2I; METHOD 0, 1, 2)        json=0
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic, clippy::float_cmp, clippy::cast_precision_loss)]
 

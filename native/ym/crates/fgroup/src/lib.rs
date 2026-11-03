@@ -1,6 +1,7 @@
 //! fgroup: finite-group lattice gauge lane for the SU(N) programme. Group data (S3 for regression against
 //! the sealed S3 packages, Q8 from Gaussian-integer matrices, 2T from Hurwitz quaternions with Z[w]
-//! characters, 2O from Z[sqrt2] quaternions with Z[sqrt2] characters), the open ROWS x COLS strip with a comb gauge
+//! characters, 2O from Z[sqrt2] quaternions with Z[sqrt2] characters, 2I from Z[phi] quaternions with Z[phi]
+//! characters), the open ROWS x COLS strip with a comb gauge
 //! tree, gauge-orbit and configuration bases, the electric operator E = sum over links and g in S of
 //! (1 - L_g), the magnetic diagonal M = sum over plaquettes (2 - chi_f(U_p)) and rectangular Wilson loops.
 //! Integer arithmetic only.
@@ -21,6 +22,7 @@ pub struct Field {
 
 pub const EISENSTEIN: Field = Field { p: -1, q: -1, theta: "w" };
 pub const SQRT2: Field = Field { p: 2, q: 0, theta: "r2" };
+pub const PHI: Field = Field { p: 1, q: 1, theta: "phi" };
 
 /// Algebraic integer x + y theta of the group's field (exact pairs; rational integers have y = 0).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -280,12 +282,11 @@ pub fn t2() -> FGroup {
     }
 }
 
-/// Quaternion with doubled coordinates in Z[sqrt2]: q = (X + Y i + Z j + U k) / 2
+/// Quaternion with doubled coordinates in a quadratic ring: q = (X + Y i + Z j + U k) / 2
 type Hq2 = [Alg; 4];
 
-/// exact Hamilton product of doubled Z[sqrt2] coordinates: 2 (p q) = (2p)(2q)/2, None if not divisible
-fn hmul2(p: &Hq2, q: &Hq2) -> Option<Hq2> {
-    let f = SQRT2;
+/// exact Hamilton product of doubled coordinates: 2 (p q) = (2p)(2q)/2, None if not divisible
+fn hmul2(p: &Hq2, q: &Hq2, f: Field) -> Option<Hq2> {
     let m = |a: Alg, b: Alg| a.times(b, f);
     let [a1, b1, c1, d1] = *p;
     let [a2, b2, c2, d2] = *q;
@@ -323,7 +324,7 @@ pub fn o2() -> FGroup {
     let mut mul = vec![vec![255u8; n]; n];
     for (x, p) in el.iter().enumerate() {
         for (y, q) in el.iter().enumerate() {
-            if let Some(r) = hmul2(p, q) {
+            if let Some(r) = hmul2(p, q, SQRT2) {
                 mul[x][y] = el.iter().position(|z| *z == r).map_or(255, |v| v as u8);
             }
         }
@@ -352,12 +353,90 @@ pub fn o2() -> FGroup {
     }
 }
 
+/// The 120 elements of 2I as doubled Z[phi] coordinates: the 24 of 2T in the t2_elements order, then the 96 even
+/// permutations of (+-phi, +-1, +-phi^-1, 0), permutations in lexicographic order and signs + before -.
+pub fn i2_elements() -> Vec<Hq2> {
+    let mut v: Vec<Hq2> = t2_elements().iter().map(|q| q.map(Alg::int)).collect();
+    let base = [Alg { x: 0, y: 1 }, Alg::int(1), Alg { x: -1, y: 1 }, Alg::int(0)];
+    for a in 0..4usize {
+        for b in 0..4usize {
+            for c in 0..4usize {
+                if a == b || a == c || b == c {
+                    continue;
+                }
+                let d = 6 - a - b - c;
+                let p = [a, b, c, d];
+                let inversions = (0..4).flat_map(|i| (i + 1..4).map(move |j| (i, j))).filter(|&(i, j)| p[i] > p[j]).count();
+                if inversions % 2 != 0 {
+                    continue;
+                }
+                for m in 0..8 {
+                    let sg = |bit: usize| if m & (4 >> bit) == 0 { 1 } else { -1 };
+                    v.push([base[a].scale(sg(a.min(2))), base[b].scale(sg(b.min(2))), base[c].scale(sg(c.min(2))), base[d].scale(sg(d.min(2)))]);
+                }
+            }
+        }
+    }
+    v
+}
+
+/// 2I: multiplication table from exact Z[phi] Hamilton products; chi_f = 2 Re(q) in Z[phi]; with t = chi_f and
+/// sigma(x + y phi) = (x + y) - y phi: 1, 2 = t, 3 = t^2 - 1, 4 = t^3 - 2t, 5 = t^4 - 3t^2 + 1, 6 = t^5 - 4t^3 + 3t,
+/// 2' = sigma(2), 3' = sigma(3), 4' = 2 2'. Electric set: the twelve elements with 2 Re(q) = phi.
+pub fn i2() -> FGroup {
+    let f = PHI;
+    let el = i2_elements();
+    let n = el.len();
+    let mut mul = vec![vec![255u8; n]; n];
+    for (x, p) in el.iter().enumerate() {
+        for (y, q) in el.iter().enumerate() {
+            if let Some(r) = hmul2(p, q, f) {
+                mul[x][y] = el.iter().position(|z| *z == r).map_or(255, |v| v as u8);
+            }
+        }
+    }
+    let inv: Vec<u8> = (0..n).map(|x| (0..n as u8).find(|&y| mul[x][y as usize] == 0).unwrap_or(255)).collect();
+    let chi_f: Vec<Alg> = el.iter().map(|q| q[0]).collect();
+    let poly = |c: &[i64]| -> Vec<Alg> {
+        chi_f
+            .iter()
+            .map(|&t| {
+                // Horner, c[0] the highest power
+                c.iter().fold(Alg::int(0), |acc, &k| acc.times(t, f).plus(Alg::int(k)))
+            })
+            .collect()
+    };
+    let conj = |v: &[Alg]| -> Vec<Alg> { v.iter().map(|a| Alg { x: a.x + a.y, y: -a.y }).collect() };
+    let chi2 = poly(&[1, 0]);
+    let chi3 = poly(&[1, 0, -1]);
+    let chi4 = poly(&[1, 0, -2, 0]);
+    let chi5 = poly(&[1, 0, -3, 0, 1]);
+    let chi6 = poly(&[1, 0, -4, 0, 3, 0]);
+    let chi2p = conj(&chi2);
+    let chi3p = conj(&chi3);
+    let chi4p: Vec<Alg> = (0..n).map(|g| chi2[g].times(chi2p[g], f)).collect();
+    let electric: Vec<u8> = (0..n as u8).filter(|&g| el[g as usize][0] == Alg { x: 0, y: 1 }).collect();
+    FGroup {
+        name: "2I",
+        n,
+        mul,
+        inv,
+        electric,
+        field: f,
+        chi_f: chi_f.clone(),
+        chars: vec![vec![Alg::int(1); n], chi2, chi3, chi4, chi5, chi6, chi2p, chi3p, chi4p],
+        dims: vec![1, 2, 3, 4, 5, 6, 2, 3, 4],
+        fund: 1,
+    }
+}
+
 pub fn group(id: i64) -> Option<FGroup> {
     match id {
         1 => Some(s3()),
         2 => Some(q8()),
         3 => Some(t2()),
         4 => Some(o2()),
+        5 => Some(i2()),
         _ => None,
     }
 }

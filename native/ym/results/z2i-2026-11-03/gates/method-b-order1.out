@@ -1,0 +1,4 @@
+FGSERIES_BASIS|group=2I|rows=2|cols=3|method=B_config_spectral|states=14400|e_w_self_adjoint=PASS|rhs_orthogonal_and_solved=PASS|orthogonality=PASS|spectral_degree=1462|order=1|json=0
+FGSERIES_ENERGY|group=2I|E_k=4/1|json=0
+FGSERIES|group=2I|loop=1x1|method=B_config_spectral|c_k=0/1,1/12+1/12phi|json=0
+FGSERIES|group=2I|loop=1x2|method=B_config_spectral|c_k=0/1,0/1|json=0
