@@ -7,6 +7,20 @@ HBI → HBP → SHA → SH → HASH integrity chain on every result package.
 
 **Companion repository.** [Finite-universe Yang–Mills with HEB-C](https://github.com/JesseBrown1980/Finite-universe-Yang-mills-existence-and-mass-gap-using-HEB-C) holds the S₃ finite-lattice spectral certificates, [the volume-uniform proof plan](https://github.com/JesseBrown1980/Finite-universe-Yang-mills-existence-and-mass-gap-using-HEB-C/blob/main/docs/YM_TOPOLOGICAL_STABILITY_PROOF.md), which covers the quantum double of any finite group, and [the continuum track](https://github.com/JesseBrown1980/Finite-universe-Yang-mills-existence-and-mass-gap-using-HEB-C/blob/main/native/ym/shadow/CONTINUUM-TRACK.md), which lists the obligations from finite lattices to a four-dimensional theory.
 
+## Where we stand, November 3, 2026
+
+| Step | State |
+|---|---|
+| S₃ confinement | Sealed: potential, string tension and Wilson loops |
+| Q8, the first SU(2) subgroup | Sealed, with the registered W4 FAIL kept |
+| 2T | Sealed |
+| 2O | Sealed on 2×3. The 2×4 ladder is next |
+| Qutrit network bounds | Sealed, with the registered N4 FAIL kept |
+| **2I, the fourth subgroup** | **In progress, on [draft PR #9](https://github.com/JesseBrown1980/Finite-Universe-SU-N-solved/pull/9).** Its prediction is frozen, the group, spectrum and exact arithmetic pass, and the exact count at 3 J_E is still running. Then the addendum, the driver and the official run |
+| Continuous SU(2), 3+1 dimensions, the continuum | Named below, after the subgroups |
+
+The whole project's status, with the Yang–Mills results on S₃ and what is open, is in [the register](https://github.com/JesseBrown1980/Finite-universe-Yang-mills-existence-and-mass-gap-using-HEB-C/blob/main/docs/RESEARCH-STATUS-2026-11-03.md).
+
 Sequence:
 1. S3 confinement: static-charge potential, string tension, Wilson loops, volume scaling.
 2. SU(2), two tracks. Track A, finite subgroups: Q8, binary tetrahedral (2T), binary octahedral (2O),
