@@ -1,0 +1,1 @@
+STURM-Q2|result=PASS|status=COMPLETE|mode=interval|field=QF_1_1|JE=810000000000000|JB=30000000000000|threshold=2430000000000000000/1000|scale_digits=80|phi_enclosure=L^2-SL-S^2<=0<(L+1)^2-S(L+1)-S^2_VERIFIED|states=296|upper_entries=3624|pivots=296/296|negative=0|positive=296|elapsed_ms=1859|json=0
