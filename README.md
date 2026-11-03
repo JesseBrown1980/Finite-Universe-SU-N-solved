@@ -17,6 +17,7 @@ HBI → HBP → SHA → SH → HASH integrity chain on every result package.
 | 2O | Sealed on 2×3. The 2×4 ladder is next |
 | Qutrit network bounds | Sealed, with the registered N4 FAIL kept |
 | **2I, the fourth subgroup** | **In progress, on [draft PR #9](https://github.com/JesseBrown1980/Finite-Universe-SU-N-solved/pull/9).** Its prediction is frozen, the group, spectrum and exact arithmetic pass, and the exact count at 3 J_E is still running. Then the addendum, the driver and the official run |
+| Integers only | A scan of every code file finds no floating point in this repository, and a gate on every pull request keeps it that way |
 | Continuous SU(2), 3+1 dimensions, the continuum | Named below, after the subgroups |
 
 The whole project's status, with the Yang–Mills results on S₃ and what is open, is in [the register](https://github.com/JesseBrown1980/Finite-universe-Yang-mills-existence-and-mass-gap-using-HEB-C/blob/main/docs/RESEARCH-STATUS-2026-11-03.md).

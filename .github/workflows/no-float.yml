@@ -1,0 +1,26 @@
+# The operator's rule: "We can't use float." Every pull request's code is scanned for binary floating point, and anything found outside scripts/FLOAT-EVIDENCE.txt fails. Integer only, json=0.
+name: No floating point
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  no-float:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan all tracked code
+        run: python3 -I -X utf8 scripts/no_float_gate.py .
+      - name: The gate goes red on a planted float
+        run: |
+          set -euo pipefail
+          echo 'fn f() -> f64 { 0.5 }' > scripts/planted_float.rs
+          git add scripts/planted_float.rs
+          if python3 -I -X utf8 scripts/no_float_gate.py .; then echo 'the gate passed a float'; exit 1; fi
+          git rm -q --cached scripts/planted_float.rs
+          rm scripts/planted_float.rs
