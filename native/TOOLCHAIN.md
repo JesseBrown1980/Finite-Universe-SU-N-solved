@@ -30,7 +30,13 @@ up in its diff.
   GGUF-files-operating-as-trained-quantum-neural-network-models) on the finite-group strips, giving exact
   rational upper bounds on E0; backend job kind `fgqnn`.
 
+- `ym/crates/evolvers`, `ym/crates/fgroup`, `ym/crates/sturmrs`: `default-features = false` on `num-bigint`, `num-integer` and `num-traits`, so the vendored crates' floating-point paths in
+  `sqrt`, `cbrt`, `nth_root`, `Display` and parse are compiled out. The vendored crates and `ym/Cargo.lock` are unchanged. Old and new hashes:
+  [`ym/results/compiled-check-20261104/PINS.hbp`](ym/results/compiled-check-20261104/PINS.hbp).
+
 The S3 packages `native/ym/results/zconfcert-2026-10-30-cloud` (certified static-charge energies) and
 `native/ym/results/zwilson-2026-10-30-cloud` (certified spatial Wilson loops) are copied unchanged, at their
 original paths, so their `run.sh` files and seals are the sealed originals; here they rebuild this copy of the
 toolchain, run every job through its own `hebc_ym_http0 serve`, and reproduce their `RESULT.hbp` byte for byte.
+
+Correction, 2026-11-04: `zwilson`'s driver manifest now has `default-features = false`, so its `SHA256SUMS`, `.hbi` and seal moved, and its old seal is kept in its `PIN-CORRECTION-20261104.hbp`. `zconfcert` holds no num crate, and its seal stays the sealed original.

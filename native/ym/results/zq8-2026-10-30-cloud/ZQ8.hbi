@@ -10,3 +10,5 @@ EMIT|family=SUN-ZQ8-2026-10-30-CLOUD|name=run.sh|sha256=3aa8c1cf334b444817743817
 EMIT|family=SUN-ZQ8-2026-10-30-CLOUD|name=zq8/Cargo.lock|sha256=602db122a7d359ee5b5dc27102dbab3cc3d4cac8ecf3e7db7a56760e4353a6e7|pid=554872292c7fb118|json=0
 EMIT|family=SUN-ZQ8-2026-10-30-CLOUD|name=zq8/Cargo.toml|sha256=ffd2f91eae2bd0e38a21e333056d18096432e313eade12a9d589a4cde1482ccc|pid=ed04fd2733890bfc|json=0
 EMIT|family=SUN-ZQ8-2026-10-30-CLOUD|name=zq8/src/main.rs|sha256=c8dfd6ce42601604d52755fec9e28e06722fef6627cd4cf7ec040cf9ae8ec8a1|pid=868bfc689a864af7|json=0
+EMIT|family=SUN-ZQ8-2026-10-30-CLOUD|name=zq8/Cargo.toml|sha256=1f5714966eaa96b4b945d4ffe2b09d6bd3646584b6b4b3b83f79ed919a9cce72|pid=c484d1ddd86bbf0e|json=0
+EMIT|family=SUN-ZQ8-2026-10-30-CLOUD|name=PIN-CORRECTION-20261104.hbp|sha256=3a5652a80c207afd465c8cbc4e0a8c7ff628278f715ee095599321a6ced96349|pid=faca4505a940238e|json=0
