@@ -1,0 +1,28 @@
+# One source built with the base commit's manifests and with this branch's, compared on the recorded rows on Linux, where those rows were made. Evidence for the manifest change, run on this branch only. Integer only, json=0.
+name: Compiled check, the same rows built both ways
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [compiled-check-20261104]
+
+permissions:
+  contents: read
+
+jobs:
+  both-ways:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Rust 1.81 with clippy
+        run: rustup toolchain install 1.81.0 --profile minimal --component clippy
+      - name: Built both ways, with the lock files and the vendor folder read after
+        run: python3 -I -X utf8 native/ym/results/compiled-check-20261104/replay_both_ways.py build da113593c6bdd6483a78b623902100de82ad752f
+      - name: The recorded rows, both ways
+        run: |
+          set -euo pipefail
+          python3 -I -X utf8 native/ym/results/compiled-check-20261104/replay_both_ways.py run da113593c6bdd6483a78b623902100de82ad752f | tee /tmp/both.hbp
+          grep -q '^BOTH_WAYS_DONE|failed=0|' /tmp/both.hbp
