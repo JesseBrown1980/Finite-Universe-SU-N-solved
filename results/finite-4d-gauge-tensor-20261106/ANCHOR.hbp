@@ -1,0 +1,8 @@
+ANCHOR|protocol=SHA256_GIT_PINNED_OUTSIDE_IMPLEMENTATION|date=2026-11-06|prediction_parent=77454a7e2700216cdcc8efb548a175d79b17fa2c|branch=gpt6-closed-gauge-tensor-z3-s3-20261106|author_claim=NONE|scope=full_gauge_transfer_tensor|json=0
+PIN|file=gauge_tensor.py|sha256=f496937cd0dc67025fd8bf6d640ad4913d0cc2ad0e19956e9d664c391414dcb3|json=0
+PIN|file=verify_gauge_tensor.py|sha256=085d2a67a6779766572a16487f70c231fe4c31b6c2ad021e811640022deb8d05|json=0
+PIN|file=primal_z3_check.c|sha256=f70a079a4398c3bc6281e77abc505abab6a6d9eb8db8cadaabe17111141c9b68|json=0
+PIN|file=RESULT.hbp|sha256=f2163e13479b117cf6d6eeae5f82a8488aa7b224ed7c365309b4691ba521bd14|json=0
+PIN|file=REVIEW.hbp|sha256=61cf4a91bba3ecae7df328ee3274bef26629dd2473ee9c56ddc015d32d9b4638|json=0
+PIN|file=PRIMAL.hbp|sha256=9119c27c2b40750f2ed6d894f864300a169cd793d14f4f8d6d917d19e06ae14a|json=0
+ANCHOR_END|pin_count=6|status=BEFORE_IMPLEMENTATION_COMMIT|json=0
