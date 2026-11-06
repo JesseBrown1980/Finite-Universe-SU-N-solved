@@ -1,0 +1,26 @@
+name: Continuous SU3 leading Wilson-loop test
+on:
+  pull_request:
+    paths:
+      - "results/su3-wilson-leading-20261106/**"
+      - ".github/workflows/su3-wilson-leading.yml"
+  push:
+    branches: [main]
+    paths:
+      - "results/su3-wilson-leading-20261106/**"
+      - ".github/workflows/su3-wilson-leading.yml"
+permissions:
+  contents: read
+jobs:
+  su3-wilson-leading:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Independent prediction freeze and exact replay
+        run: |
+          set -euo pipefail
+          cd results/su3-wilson-leading-20261106
+          python3 verify_su3.py
+          python3 su3_wilson_leading.py > /tmp/SU3-RESULT.hbp
+          cmp RESULT.hbp /tmp/SU3-RESULT.hbp
