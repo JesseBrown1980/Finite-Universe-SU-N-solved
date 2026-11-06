@@ -6,7 +6,6 @@ Not a finite-beta lattice QCD simulation, glueball spectrum, or full SU(3) trans
 Independent reviewer must check all Haar and minimal-area assumptions.
 """
 from collections import defaultdict
-from fractions import Fraction
 from hashlib import sha256
 from itertools import product
 from time import perf_counter_ns
@@ -14,6 +13,16 @@ import argparse
 
 P = 1000081
 CASES = [(1,1),(1,2),(2,1),(1,3),(3,1),(2,2),(2,3),(3,2),(3,3)]
+
+def exactpow(base, exponent):
+    out=1
+    for _ in range(exponent):
+        out*=base
+    return out
+
+def gcd(a,b):
+    while b:a,b=b,a%b
+    return a
 
 class DSU:
     def __init__(self,n):
@@ -83,9 +92,12 @@ def contraction(r,t,axes=(0,1),origin=(0,0,0,0),fault=None):
         dsu.union(plus[0],minus[1])
         dsu.union(plus[1],minus[0])
     edges=len(occ)
-    coeff=Fraction(3**dsu.count,3*(6**(r*t))*(3**edges))
-    if fault=='missing_tr_normalization':coeff*=3
-    if fault=='missing_Haar_divisor_3':coeff*=3**edges
+    numerator=exactpow(3,dsu.count)
+    denominator=3*exactpow(6,r*t)*exactpow(3,edges)
+    if fault=='missing_tr_normalization':numerator*=3
+    if fault=='missing_Haar_divisor_3':numerator*=exactpow(3,edges)
+    divisor=gcd(numerator,denominator)
+    coeff=f'{numerator//divisor}/{denominator//divisor}' 
     return {'R':r,'T':t,'area':r*t,'edges':edges,'colour_loops':dsu.count,'coefficient':coeff,
             'variables':offset, 'occ':occ,'parents':[dsu.find(i) for i in range(offset)]}
 
@@ -114,7 +126,7 @@ def run():
     allok=True
     for r,t in CASES:
         m=contraction(r,t)
-        expected=Fraction(1,18**(r*t)); E=2*r*t+r+t;V=(r+1)*(t+1)
+        expected=f'1/{exactpow(18,r*t)}'; E=2*r*t+r+t;V=(r+1)*(t+1)
         ok=(m['coefficient']==expected and m['edges']==E and m['colour_loops']==V)
         allok &=ok
         lines.append(row(m).replace('|tag=',f'|prediction_match={int(ok)}|tag='))
@@ -140,13 +152,13 @@ def run():
     for fault in ['wrong_inverse_orientation','missing_tr_normalization','missing_Haar_divisor_3','unpaired_boundary_link']:
         try:
             broken=contraction(1,2,fault=fault)
-            rejected=broken['coefficient']!=Fraction(1,324)
+            rejected=broken['coefficient']!='1/324'
         except (ValueError,AssertionError):rejected=True
         allok &=rejected
         lines.append(f'SU3_SABOTAGE|name={fault}|rejected={int(rejected)}|json=0')
     t0=perf_counter_ns(); valid=brute_colour_one_plaquette(contraction(1,1)); brute_ns=perf_counter_ns()-t0
     t0=perf_counter_ns(); sample=contraction(1,1);fast_ns=perf_counter_ns()-t0
-    brute_ok=valid==3**sample['colour_loops']==81
+    brute_ok=valid==exactpow(3,sample['colour_loops'])==81
     allok &=brute_ok
     lines.append(f'SU3_BRUTE|R=1|T=1|raw_assignments=6561|matching_assignments={valid}|predicted_matching=81|pass={int(brute_ok)}|json=0')
     # Repeated identical *leading-order* row transfer in charge 0,+1,-1 sectors.
@@ -154,7 +166,7 @@ def run():
     inv18=pow(18,-1,P); lam=inv18
     state=[0,lam,0]; every=True
     for k in (1,2,3,6,10,20):
-        n=3**k; stepped=pow(lam,n,P)
+        n=exactpow(3,k); stepped=pow(lam,n,P)
         cubed=lam
         for _ in range(k):cubed=pow(cubed,3,P)
         ok=(stepped==cubed)
