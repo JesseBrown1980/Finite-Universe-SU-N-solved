@@ -1,0 +1,9 @@
+Z3_SLICE_PREDICTION|date=2026-11-06|version=1|status=FROZEN_BEFORE_ENGINE|model=finite_Z3_center_of_SU3|spatial=2x2x2_periodic|isotropic_4D_plaquette_weights=4,1,1|temporal_transfer=original_MK|integer_only=1|json=0
+Z3_TOPOLOGY|vertices=8|oriented_links=24|spatial_plaquettes=24|rank_boundary1=7|rank_boundary2=14|cycle_space_dim=17|H1_dim=3|topological_sector_count=27|sector_dim=4782969|full_physical_dim=129140163|tag=DERIVED|json=0
+Z3_TRANSFER|physical_T=q^8*M*C|q=3|C_per_link[a,b]=w(a-b)|M=prod_faces_w(plaquette)|Fourier_C_eigen_zero=6|Fourier_C_eigen_nonzero=3|T_scaled=T/(3^8*3^24)|Fourier_T_scaled=prod_faces(2I+S_face+S_minusface)*diag(2^zero_edge_count)|tag=DERIVED|json=0
+Z3_INVARIANT|k_in_kernel_boundary1=1|each_face_shift_in_image_boundary2=1|topological_coset_of_image_boundary2=EXACTLY_PRESERVED|magnetic_and_electric_both_included=1|no_four_state_projection=1|json=0
+Z3_PREDICT|magnetic_fourier_m_at_zero=99186762|m_at_first_plaquette_boundary=83956047|m_at_sum_two_plaquette_boundaries=74068664|sum_all_m=281474976710656|tag=DERIVED|json=0
+Z3_PREDICT|initial_a0=delta_zero|a1_scaled_k=16777216*m_k|a2_scaled_at_zero=sum_over_k(m_k*m_k*2^(zero_edges(k)+24))|t2_open_slab=3^24*(3^8*3^24)^2*a2_scaled_at_zero|tag=DERIVED|json=0
+Z3_PREDICT|m_coefficient_dimension=4782969|entire_two_step_state_coefficients=4782969|coefficients_stored_exactly_uint128_at_two_steps=1|state_orbit_table_not_stored=1|dense_transfer_not_stored=1|json=0
+Z3_GATE|independent_dual_magnetic=PASS_REQUIRED|two_different_transfer_algorithms=PASS_REQUIRED|full_gauge_canonical_samples=PASS_REQUIRED|step_vs_jump_on_closed_electric_control=PASS_REQUIRED|negative_wrong_sector=REJECT|negative_wrong_plaquette=REJECT|json=0
+Z3_JUMP_SCOPE|electric_only_closed_sector_power_jump=ALLOWED|interacting_full_sector_fast_jump=OPEN|arbitrary_large_time_compact_exact_evolution=OPEN|S3_nonabelian_flux_sector_extension=OPEN|full_mass_eigenvalue=OPEN|reviewer=Opus|json=0
