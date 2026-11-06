@@ -1,0 +1,11 @@
+SU3_FINITE_PREDICTION|date=2026-11-06|version=1|group=continuous_SU3|space_dimension=1|euclidean_dimensions=2|extension=4D_anisotropic_decoupled_sheets_only|N_f=0|action=exp(beta/6*(TrU+TrUdag))|eta=beta/6|status=FROZEN_BEFORE_SOLVER|json=0
+SU3_FINITE_SCOPE|geometry=open_2D_infinite_plane_or_free_boundary|beta_values=1/2,1,2,4,6|K=80|Haar_normalized=1|mass=finite_coupling_transfer_electric_flux_gap_not_4D_glueball|quark_potential=static_external_fundamental_sources|no_4D_isotropic_or_QCD_claim=1|json=0
+SU3_FINITE_LAW|characters=SU3_pq|A=multiplication_by_chi3_plus_chibar3|m_nR=(A^n)_R_singlet|a_R=sum_n_m_nR*(beta/6)^n/n!|u_R=a_R/(dimR*a_singlet)|W_RT=u3^(R*T)|V_R=R*(-ln_u3)|m3=-ln_u3|m8=-ln_u8|json=0
+SU3_FINITE_CONTROL|K=80|remainder_bound_by_positive_exp_tail_beta_over_dimR|independent_route=SU3_Bessel_Toeplitz_determinant|forward_Pascal_recurrence=1|log_rational_interval=1|count_symmetry_3_vs_3bar=1|json=0
+SU3_BESSEL_PREDICT|beta=1/2|u3_atto=28931672799122886|u8_atto=916105026271620|mass3_pico=3542818339366|mass8_pico=6995379542361|W22_atto=700638792397|tag=INDEPENDENT_NUMERICAL_PREDICTION|json=0
+SU3_BESSEL_PREDICT|beta=1|u3_atto=60126554833564757|u8_atto=3852148863475457|mass3_pico=2811303690872|mass8_pico=5559124140030|W22_atto=13069689811236|tag=INDEPENDENT_NUMERICAL_PREDICTION|json=0
+SU3_BESSEL_PREDICT|beta=2|u3_atto=128627785322083422|u8_atto=16774333264047525|mass3_pico=2050832430468|mass8_pico=4087905342723|W22_atto=273740570832111|tag=INDEPENDENT_NUMERICAL_PREDICTION|json=0
+SU3_BESSEL_PREDICT|beta=4|u3_atto=279619149409304400|u8_atto=73575120138110081|mass3_pico=1274326782379|mass8_pico=2609448351998|W22_atto=6113186439672894|tag=INDEPENDENT_NUMERICAL_PREDICTION|json=0
+SU3_BESSEL_PREDICT|beta=6|u3_atto=422531739649983468|u8_atto=162259799479938177|mass3_pico=861490711574|mass8_pico=1818556527810|W22_atto=31874057444847794|tag=INDEPENDENT_NUMERICAL_PREDICTION|json=0
+SU3_FINITE_NEGATIVE|missing_divide_by_dim3=REJECT|wrong_adjoint_dim=REJECT|dropped_bar3_fusion_branch=REJECT|wrong_loop_area=REJECT|truncation_low_K=REJECT|wrong_log_sign=REJECT|json=0
+SU3_FINITE_REVIEW|role=GPT6_impl|independent_reviewer=Opus|code_missing_when_predictions_committed=1|json=0
