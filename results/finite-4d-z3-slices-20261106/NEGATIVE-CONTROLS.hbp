@@ -1,0 +1,5 @@
+FAULT|name=missing_transfer_coefficient_REJECT|json=0
+FAULT|name=missed_magnetic_factor_REJECT|json=0
+FAULT|name=wrong_charged_character_REJECT|json=0
+FAULT|name=mutated_leaf_with_recomputed_internal_digest_refused_by_external_root_REJECT|json=0
+FAULT|name=tampered_chain_record_REJECT|json=0

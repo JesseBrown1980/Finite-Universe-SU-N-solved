@@ -1,0 +1,30 @@
+name: Finite 4D Z3-center slices (exact integers)
+on:
+  pull_request:
+    paths:
+      - "results/finite-4d-z3-slices-20261106/**"
+      - ".github/workflows/finite-4d-z3-slices.yml"
+  push:
+    branches: [main]
+    paths:
+      - "results/finite-4d-z3-slices-20261106/**"
+      - ".github/workflows/finite-4d-z3-slices.yml"
+permissions:
+  contents: read
+jobs:
+  exact-slice-replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Exact integer execution and external anchor
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd results/finite-4d-z3-slices-20261106
+          sha256sum --check SHA256SUMS
+          python3 -I slice_engine.py
+          sha256sum --check SHA256SUMS
+          python3 -I verify_slices.py --root 72a1eec4275eb719ce70142c09270c266a765b96726e4c309b04218442e5ab8f
+          git diff --exit-code -- .
