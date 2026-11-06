@@ -1,0 +1,7 @@
+HBI|date=2026-11-06|model=finite_4D_2x2x2_Z3_and_nonabelian_S3|object=full_physical_space_matrix_free_transfer|json=0
+HBI|prediction_commit=77454a7e2700216cdcc8efb548a175d79b17fa2c|anchor_commit=508ba40d8734414fba4de186e3efff64dbfea5c9|anchor_outside_implementation=1|json=0
+HBI|sources=gauge_tensor.py,verify_gauge_tensor.py,primal_z3_check.c|outputs=RESULT.hbp,REVIEW.hbp,PRIMAL.hbp|json=0
+HBI|full_space_Z3=129140163|full_space_S3=2821153019713|dense_transfer_allocated=0|closed_physical_projector=1|json=0
+HBI|full_magnetic_Z3_partition=28013271216711264522|dual_assignments=59049|primal_flux_enumeration=4782969|independent_exact_match=1|json=0
+HBI|global_interacting_transfer_gap=strict_positive_bound_only|numeric_interacting_mass=OPEN|S3_complete_partition=OPEN|json=0
+HBI|provenance_limit=Git_content_anchor_not_author_signature|reviewer=Opus_PENDING|json=0

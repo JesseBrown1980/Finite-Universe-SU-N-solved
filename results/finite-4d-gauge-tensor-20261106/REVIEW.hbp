@@ -1,0 +1,17 @@
+REVIEW|group=Z3|multiplication_table=PASS|weight_classes=PASS|json=0
+REVIEW|group=Z3|case=0|full_entry=49057925720702976|independent_plaquette=PASS|gauge_both_boundaries=PASS|json=0
+REVIEW|group=Z3|case=1|full_entry=162638507225088|independent_plaquette=PASS|gauge_both_boundaries=PASS|json=0
+REVIEW|group=Z3|case=2|full_entry=56792889400320|independent_plaquette=PASS|gauge_both_boundaries=PASS|json=0
+REVIEW|group=Z3|physical_electric_two_link_spectrum=PASS|json=0
+REVIEW|group=S3|multiplication_table=PASS|weight_classes=PASS|json=0
+REVIEW|group=S3|case=0|full_entry=2702876820979968000|independent_plaquette=PASS|gauge_both_boundaries=PASS|json=0
+REVIEW|group=S3|case=1|full_entry=498948953644984320|independent_plaquette=PASS|gauge_both_boundaries=PASS|json=0
+REVIEW|group=S3|case=2|full_entry=60089618427480000000|independent_plaquette=PASS|gauge_both_boundaries=PASS|json=0
+REVIEW|group=S3|physical_electric_two_link_spectrum=PASS|json=0
+REVIEW|group=Z3|full_magnetic_dual=PASS|no_raw_orbit_enumeration=PASS|json=0
+FAULT|name=perturbed_Fourier_closed_sum|rejected=1|json=0
+FAULT|name=noncommutative_S3_replaced_by_abelian|rejected=1|json=0
+FAULT|name=extra_magnetic_plaquette|rejected=1|json=0
+FAULT|name=missing_one_link_convolution|rejected=1|json=0
+FAULT|name=missing_spatial_link_boundary|rejected=1|json=0
+FAULT|name=forged_leaf_and_rehashed_internal_chain|external_root_required=1|rejected=1|json=0
