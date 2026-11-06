@@ -1,0 +1,8 @@
+BENCH|group=Z3|pair=0,0|method=ELIM|elapsed_ns=947665|same_integer=1|json=0
+BENCH|group=Z3|pair=0,0|method=BRUTE|elapsed_ns=4338861|same_integer=1|json=0
+BENCH|group=Z3|pair=0,2|method=ELIM|elapsed_ns=839034|same_integer=1|json=0
+BENCH|group=Z3|pair=0,2|method=BRUTE|elapsed_ns=4875415|same_integer=1|json=0
+BENCH|group=S3|pair=0,0|method=ELIM|elapsed_ns=8264779|same_integer=1|json=0
+BENCH|group=S3|pair=0,0|method=BRUTE|elapsed_ns=1126902879|same_integer=1|json=0
+BENCH|group=S3|pair=0,2|method=ELIM|elapsed_ns=7311716|same_integer=1|json=0
+BENCH|group=S3|pair=0,2|method=BRUTE|elapsed_ns=1035503865|same_integer=1|json=0

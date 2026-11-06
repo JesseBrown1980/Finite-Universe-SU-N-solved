@@ -1,5 +1,14 @@
 # Finite-Universe SU(N)
 
+## Finite discrete universe: verified one-slice transfer matrices (November 6, 2026)
+
+**The objective is an exact finite gauge universe processed one three-dimensional spatial slice at a time.** No infinite-volume or continuum limit is required to define or test the finite theory. The [first exact Z₃ center slice engine](results/finite-4d-z3-slices-20261106/README.md) is merged from [PR #22](https://github.com/JesseBrown1980/Finite-Universe-SU-N-solved/pull/22): 2×1×1 space, 243 gauge-orbit states, verified 243×243 integer transfer and 81-step matrix jump.
+
+**Nondegenerate 2×2×2 spatial slices:** the [Z₃ and non-Abelian S₃ extension](results/finite-4d-slices-2x2x2-20261106/README.md) constructs exactly the 24 spatial and 24 temporal plaquette contributions per step using a finite-group kernel and temporal-link elimination. It verifies 16 entry kernels per group, independent direct plaquette enumeration, 27 reproducible diagnostic updates, pinned root hashes and six fault controls. The four-boundary-state catalogue is **not a closed physical subspace**, so its eigenvalues and traces do not establish the full finite-system mass or potential.
+
+**Exact gauge-orbit quotient:** seven spanning-tree links reduce 24 directed link variables to 17 cycles; residual simultaneous conjugation gives 129,140,163 physical Z₃ orbit states and 2,821,153,019,713 S₃ orbit states. The [finite slice matrix guide](docs/FINITE-SLICE-MATRIX-GUIDE.md) proves the Burnside count, tests canonicalization and specifies the next work: gauge-invariant spin-network / flux tensors, matrix-vector contractions without constructing dense matrices, and independently certified power jumps on *closed* sectors. This is the measured path toward handling the enormous finite gauge-invariant state space, **not a claim that it has already been solved**.
+
+
 > **Connected research index (2026-11-04):** [17-repository evidence map](https://github.com/JesseBrown1980/Hard-drive-and-USB-as-GPU/blob/main/ECOSYSTEM-RESEARCH-MAP-20261104.md) · [same-gate Google qsim test in QNN](https://github.com/JesseBrown1980/GGUF-files-operating-as-trained-quantum-neural-network-models/blob/main/docs/GOOGLE-QSIM-LIKE-FOR-LIKE-20261104.md) · [physical 96³ HTTP-0 results](https://github.com/JesseBrown1980/qoled-internet-HEB-C-revisted-HTTP---free-0-hbi-hbp-sha-sh-hash/blob/main/engine96/MEASURED-20261104.hbp). These are navigation links; the verdicts and limits of this project remain as recorded here.
 
 Exact integer-arithmetic certificates of finite-lattice gauge theories for finite groups on the road to
