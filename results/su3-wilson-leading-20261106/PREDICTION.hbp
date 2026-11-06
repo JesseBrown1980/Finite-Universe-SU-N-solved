@@ -1,0 +1,16 @@
+SU3_PREDICTION|version=1|date=2026-11-06|group=continuous_SU3|dimensions=4|boundary=open|fermions=none|action=exp(beta/6*(TrU+TrUdag))_per_plaquette|observable=ReTr(U_C)/3|limit=beta_to_0|status=FROZEN_BEFORE_ENGINE|json=0
+SU3_PREDICT_SCOPE|spatial_temporal_loop=R_by_T|4D_box=4x4x4x4_vertices|rectangle_plane=axes_0_1|all_transverse_links_integrated|coefficient_of_beta^area_only|no_finite_beta_claim=1|json=0
+SU3_PREDICT_INTEGRAL|fundamental_link_Haar=integral_Uab_conjUcd=delta_ac_delta_bd/3|each_internal_edge_paired_opposite|planar_colour_components=vertices_of_tiled_rectangle|other_fewer_area_surfaces=excluded_by_calibration|json=0
+SU3_PREDICT|R=1|T=1|area=1|edges=4|colour_loops=4|coefficient=1/18|tag=DERIVED|json=0
+SU3_PREDICT|R=1|T=2|area=2|edges=7|colour_loops=6|coefficient=1/324|tag=DERIVED|json=0
+SU3_PREDICT|R=2|T=1|area=2|edges=7|colour_loops=6|coefficient=1/324|tag=DERIVED|json=0
+SU3_PREDICT|R=1|T=3|area=3|edges=10|colour_loops=8|coefficient=1/5832|tag=DERIVED|json=0
+SU3_PREDICT|R=3|T=1|area=3|edges=10|colour_loops=8|coefficient=1/5832|tag=DERIVED|json=0
+SU3_PREDICT|R=2|T=2|area=4|edges=12|colour_loops=9|coefficient=1/104976|tag=DERIVED|json=0
+SU3_PREDICT|R=2|T=3|area=6|edges=17|colour_loops=12|coefficient=1/34012224|tag=DERIVED|json=0
+SU3_PREDICT|R=3|T=2|area=6|edges=17|colour_loops=12|coefficient=1/34012224|tag=DERIVED|json=0
+SU3_PREDICT|R=3|T=3|area=9|edges=24|colour_loops=16|coefficient=1/198359290368|tag=DERIVED|json=0
+SU3_PREDICT_SYMMETRY|R=1|T=3|axis_pairs=0,1;0,2;1,3|translated_origin=0,0,0,0_and_0,0,1,1|same_leading_coefficient=1|json=0
+SU3_PREDICT_CONTROLS|wrong_inverse_orientation=REJECT|missing_tr_normalization=REJECT|missing_Haar_divisor_3=REJECT|unpaired_boundary_link=REJECT|nonplanar_tiling_at_minimal_area=REJECT|json=0
+SU3_PREDICT_SPEED|measure_brute_colour_assignments_for_R1_T1|measure_DSU_contract_for_R1_T1_R2_T2|cross_machine_speedup_not_claimed=1|json=0
+SU3_PREDICT_STATUS|numerical_finite_coupling=OPEN|quark_dynamical=NO|glueball_mass=OPEN|continuum_mass_gap=OPEN|reviewer=Opus_pending|json=0
