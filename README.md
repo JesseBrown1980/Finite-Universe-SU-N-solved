@@ -1,5 +1,9 @@
 # Finite-Universe SU(N)
 
+## Complete gauge-space operator and exact full-space observables — November 6, 2026
+
+**New exact full-space reduction:** [The gauge-tensor package](results/finite-4d-gauge-tensor-20261106/README.md) uses a complete gauge projector, 24 local link convolutions and 24 spatial plaquettes to apply the **entire** 2×2×2 finite transfer without constructing the 129,140,163-state Z₃ or 2,821,153,019,713-state non-Abelian S₃ matrix. The proof of physical-space closure and a conservative strict positive finite transfer-gap bound are in [Law E–H](docs/FINITE-SLICE-MATRIX-FULLSPACE.md). A separate exact Z₃ dual 2-form calculation evaluates the **full spatial magnetic partition** and Wilson insertions using 59,049 flux states; an integer-only C11 calculation independently verifies them using 4,782,969 primal flux configurations. **Interacting numerical eigenvalues, long-time efficient contraction and the full S₃ interacting partition remain OPEN**. Predictions and six result hashes were independently pinned in Git before engine source was committed; Opus's review is pending.
+
 ## Finite discrete universe: verified one-slice transfer matrices (November 6, 2026)
 
 **The objective is an exact finite gauge universe processed one three-dimensional spatial slice at a time.** No infinite-volume or continuum limit is required to define or test the finite theory. The [first exact Z₃ center slice engine](results/finite-4d-z3-slices-20261106/README.md) is merged from [PR #22](https://github.com/JesseBrown1980/Finite-Universe-SU-N-solved/pull/22): 2×1×1 space, 243 gauge-orbit states, verified 243×243 integer transfer and 81-step matrix jump.
@@ -28,6 +32,7 @@ HBI → HBP → SHA → SH → HASH integrity chain on every result package.
 |---|---|
 | **Finite 4D Z₃ slices, 2×1×1** | **MERGED, PASS:** exact 243-state one-slice transfer, independent 81-step replay, external root anchor and verified matrix jumps ([PR #22](https://github.com/JesseBrown1980/Finite-Universe-SU-N-solved/pull/22)) |
 | **Finite 4D Z₃ / non-Abelian S₃ slices, 2×2×2** | **MERGED, PASS for tested kernels:** 24 spatial and 24 temporal plaquettes, exact contraction, 27-step diagnostic replay, Burnside counts and fault controls ([PR #23](https://github.com/JesseBrown1980/Finite-Universe-SU-N-solved/pull/23); [guide](docs/FINITE-SLICE-MATRIX-GUIDE.md)) |
+| **Complete 2×2×2 gauge-space tensor transfer** | **FILED for Opus review:** closed Gauss-law transfer, independent exact full-space entry checks, Z₃ magnetic partition and Wilson observables, finite interacting positive-gap *bound*; [evidence](results/finite-4d-gauge-tensor-20261106/README.md). Actual interacting masses still OPEN |
 | **Huge gauge-invariant physical state space** | **OPEN:** exact gauge quotient leaves 129,140,163 Z₃ or 2,821,153,019,713 S₃ states; the four-state diagnostic catalogue is not an invariant physical sector. Next: character/irrep flux tensors, Gauss-law projectors, contraction-based operator application and independently verified jumps on a proved closed representation |
 | S₃ confinement | Sealed: potential, string tension and Wilson loops |
 | Q8, the first SU(2) subgroup | Sealed, with the registered W4 FAIL kept |

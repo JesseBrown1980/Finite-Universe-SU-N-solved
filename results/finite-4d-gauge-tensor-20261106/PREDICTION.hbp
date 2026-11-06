@@ -1,0 +1,13 @@
+GAUGE_TENSOR_PREDICTION|date=2026-11-06|version=1|status=FROZEN_BEFORE_IMPLEMENTATION|spatial=2x2x2|dimensions=4|isotropic_plaquette_weights=1|group_choices=Z3,S3|one_time_slice_per_transfer=1|json=0
+GAUGE_TENSOR_LAW|T(U,V)=M(U)*sum_over_g_vertices_product_over_edges_w(Ue*gdst*inv(Ve)*inv(gsrc))|operator=q^8*M*P*C|P=average_over_all_vertex_gauge_transforms|C=tensor_product_of_24_link_convolutions|exact_on_full_gauge_invariant_space=1|json=0
+GAUGE_TENSOR_LAW|K_ones(U)=q^8*(sum_g_w(g))^24|T_ones(U)=M(U)*K_ones|for_every_U_in_full_24_link_space=1|no_dense_vector=1|json=0
+GAUGE_TENSOR_PREDICT|group=Z3|q=3|states_raw=282429536481|states_gauge=129140163|sum_w=6|K_ones=31088519960728128454656|json=0
+GAUGE_TENSOR_PREDICT|group=S3|q=6|states_raw=4738381338321616896|states_gauge=2821153019713|sum_w=12|K_ones=6^8*12^24|json=0
+GAUGE_TENSOR_DUAL|group=Z3|plaquettes=24|links=24|rank_boundary=14|closed_2chains_dimension=10|enumeration=59049|kernel_size_links_to_plaquettes=59049|Fourier_weights=2,1,1|json=0
+GAUGE_TENSOR_PREDICT|group=Z3|dual_sum_closed=99186762|dual_sum_single_plaquette_character=83956047|dual_sum_two_plaquette_characters=74068664|gauge_orbit_magnetic_partition=12808994612122206|json=0
+GAUGE_TENSOR_PREDICT|group=Z3|raw_magnetic_partition=28013271216711264522|complete_open_one_slice_transfer_sum=870891141386018892529920237038951498514432|json=0
+GAUGE_TENSOR_PREDICT|group=Z3|W_plaquette=27985349/33062254|W_first_two_plaquettes_character_product=37034332/49593381|tag=DERIVED|json=0
+GAUGE_TENSOR_ELECTRIC|group=Z3|unweighted_magnetic_M=1|local_link_convolution_eigenvalues=6,3,3|first_nontrivial_Gauss_flux_sector_lambda_ratio=1/4|electric_only_gap=ln4|not_isotropic_interacting_gap=1|json=0
+GAUGE_TENSOR_ELECTRIC|group=S3|unweighted_magnetic_M=1|convolution_eigenvalue_triv=12|sign=6|std=3|first_nontrivial_Gauss_spinnetwork_lambda_ratio=1/4|electric_only_gap=ln4|not_isotropic_interacting_gap=1|json=0
+GAUGE_TENSOR_GATE|dual_vs_independent_primal_enumeration=PASS_REQUIRED|full_output_vs_direct_boundary_kernel=PASS_REQUIRED|gauge_covariance=PASS_REQUIRED|tensor_network_representation_exact_and_closed=PASS_REQUIRED|all_hbp_with_sha=PASS_REQUIRED|no_float=PASS_REQUIRED|json=0
+GAUGE_TENSOR_HOLD|full_isotropic_S3_partition_not_computed=1|full_interacting_2x2x2_gauge_mass_gap_not_computed=1|full_spectrum_not_materialized=1|bounded_bond_dimension_not_proven=1|Opus_independent_review=OPEN|json=0

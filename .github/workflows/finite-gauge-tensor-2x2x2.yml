@@ -1,0 +1,56 @@
+name: Finite 4D full gauge-space matrix-free tensor (Z3 and S3)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'results/finite-4d-gauge-tensor-20261106/**'
+      - 'docs/FINITE-SLICE-MATRIX-FULLSPACE.md'
+      - '.github/workflows/finite-gauge-tensor-2x2x2.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'results/finite-4d-gauge-tensor-20261106/**'
+      - 'docs/FINITE-SLICE-MATRIX-FULLSPACE.md'
+      - '.github/workflows/finite-gauge-tensor-2x2x2.yml'
+permissions:
+  contents: read
+jobs:
+  full-gauge-tensor:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout with full Git history for the earlier outside anchor
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Pin the outside anchor to its pre-implementation commit
+        run: |
+          set -euo pipefail
+          p=results/finite-4d-gauge-tensor-20261106
+          git show 508ba40d8734414fba4de186e3efff64dbfea5c9:"$p/ANCHOR.hbp" > /tmp/independent-anchor.hbp
+          cmp /tmp/independent-anchor.hbp "$p/ANCHOR.hbp"
+      - name: Rebuild complete Z3 magnetic partition and physical transfer receipts
+        run: |
+          set -euo pipefail
+          p=results/finite-4d-gauge-tensor-20261106
+          python3 "$p/gauge_tensor.py" --output /tmp/gauge-tensor-result.hbp
+          cmp "$p/RESULT.hbp" /tmp/gauge-tensor-result.hbp
+      - name: Independent physical transfer entries and S3 Gauss review
+        run: |
+          set -euo pipefail
+          p=results/finite-4d-gauge-tensor-20261106
+          python3 "$p/verify_gauge_tensor.py" > /tmp/gauge-tensor-review.hbp
+          cmp "$p/REVIEW.hbp" /tmp/gauge-tensor-review.hbp
+      - name: C11 independent primal 3^14 flux enumeration with two Wilson insertions
+        run: |
+          set -euo pipefail
+          p=results/finite-4d-gauge-tensor-20261106
+          cc -std=c11 -O2 -Wall -Wextra -Werror "$p/primal_z3_check.c" -o /tmp/z3-primal
+          /tmp/z3-primal > /tmp/z3-primal.hbp
+          cmp "$p/PRIMAL.hbp" /tmp/z3-primal.hbp
+      - name: HBI HBP SHA SH HASH chain, six frozen hash pins and forged-leaf control
+        run: |
+          set -euo pipefail
+          p=results/finite-4d-gauge-tensor-20261106
+          (cd "$p" && sha256sum --strict --check SHA256SUMS)
+          python3 "$p/verify_chain.py"
