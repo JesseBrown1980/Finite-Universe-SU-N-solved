@@ -1,0 +1,3 @@
+ORBIT|group=Z3|vertices=8|links=24|tree_links=7|cycles=17|raw=282429536481|tree_fixed=129140163|orbits=129140163|independent_small_graphs=5|gauge_samples=7|verdict=PASS|json=0
+ORBIT|group=S3|vertices=8|links=24|tree_links=7|cycles=17|raw=4738381338321616896|tree_fixed=16926659444736|orbits=2821153019713|independent_small_graphs=5|gauge_samples=7|verdict=PASS|json=0
+ORBIT_GATE|negative_wrong_group_power=REJECT|verdict=PASS|json=0

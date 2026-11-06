@@ -1,0 +1,1 @@
+SU3_SLICES_INDEX|version=2|date=2026-11-06|model=4D_isotropic_discrete_slices|spatial=2x2x2|groups=Z3,S3|result_files=RESULT.hbp,MATRIX.hbp,SLICE-CHAIN.hbp,ROOT.hbp,BENCHMARK.hbp,ORBIT.hbp|manifest_sha256=42daec62f481278638e84dfb5da5977c629457010f2e32886a28661ec7293d1c|status=ENTRY_KERNEL_ORBIT_DIMENSIONS_ONLY|json=0

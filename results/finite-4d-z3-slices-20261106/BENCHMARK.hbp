@@ -1,0 +1,5 @@
+BENCHMARK|date=2026-11-06|environment=container_CPUs_unspecified|model=4D_Z3_center_SU3|dim=243|steps=81|trials=3|dense_matrix_construction_ns=246108636|integer_only_timing=1|json=0
+BENCHMARK_TRIAL|number=1|dense_apply_ns=523938769|factored_power_jump_ns=2033243|byte_identical=1|json=0
+BENCHMARK_TRIAL|number=2|dense_apply_ns=523940334|factored_power_jump_ns=1916661|byte_identical=1|json=0
+BENCHMARK_TRIAL|number=3|dense_apply_ns=518626697|factored_power_jump_ns=1900648|byte_identical=1|json=0
+BENCHMARK_MEDIAN|dense_apply_ns=523938769|factored_power_jump_ns=1916661|speedup_integer_floor=273|matrix_build_excluded_from_speedup=1|json=0

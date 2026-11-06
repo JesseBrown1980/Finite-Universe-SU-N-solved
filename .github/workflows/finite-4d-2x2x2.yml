@@ -1,0 +1,40 @@
+name: Finite 4D 2x2x2 Z3 and S3 exact slice matrices
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'results/finite-4d-slices-2x2x2-20261106/**'
+      - 'docs/FINITE-SLICE-MATRIX-GUIDE.md'
+      - '.github/workflows/finite-4d-2x2x2.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'results/finite-4d-slices-2x2x2-20261106/**'
+      - 'docs/FINITE-SLICE-MATRIX-GUIDE.md'
+      - '.github/workflows/finite-4d-2x2x2.yml'
+permissions:
+  contents: read
+jobs:
+  slice-exact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Exact fixed group and orbit checks
+        run: |
+          set -euo pipefail
+          p=results/finite-4d-slices-2x2x2-20261106
+          grep -q 'FROZEN_BEFORE_CODE' "$p/PREDICTION.hbp"
+          python3 "$p/verify_slices.py"
+          python3 "$p/orbit_reduce.py" | tee /tmp/orbit.out
+          cmp /tmp/orbit.out "$p/ORBIT.hbp"
+      - name: Full exact results and hash manifest
+        run: |
+          set -euo pipefail
+          p=results/finite-4d-slices-2x2x2-20261106
+          mkdir -p /tmp/finite-4d-results
+          python3 "$p/finite_slice.py" --out /tmp/finite-4d-results
+          for f in RESULT.hbp MATRIX.hbp SLICE-CHAIN.hbp ROOT.hbp; do
+            cmp "$p/$f" "/tmp/finite-4d-results/$f"
+          done
+          (cd "$p" && sha256sum --strict --check SHA256SUMS)

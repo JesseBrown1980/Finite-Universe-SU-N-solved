@@ -1,0 +1,12 @@
+SLICE_PREDICTION|date=2026-11-06|name=FINITE_4D_Z3_CENTER_OF_SU3|status=FROZEN_BEFORE_ENGINE|dimension=4|spatial=2x1x1|temporal=6|periodic=all_axes|links_per_spatial_slice=6|vertices_per_slice=2|physical_gauge_orbit_states=243|json=0
+SLICE_SCOPE|group=Z3_center_subgroup_SU3|NOT_full_SU3=1|NOT_H3_27=1|isotropic=all_6_plaquette_orientations_same_weight|single_plaquette_weight_when_flat=q^2|single_plaquette_weight_when_nonflat=1|q=2|coupling_beta=(4/3)*ln(q)_for_SU3_Wilson_center|all_short_periodic_directions_1=degenerate|space_time=Euclidean_transfer_not_unitary|json=0
+SLICE_PREDICT|B_9x9_charpoly=(X-18)^2*(X-9)*(X^2-315X+5184)*(X^2-252X+2592)^2|tag=DERIVED|json=0
+SLICE_PREDICT|K_3x3_neutral_eigenvalues=36,9,9|K_3x3_charged_eigenvalues=18,18,9|tag=DERIVED|json=0
+SLICE_PREDICT|T_factor=q^4*K_x_tensor_B_y_tensor_B_z|T_state_count=243|T_000_000=18874368|tag=DERIVED|json=0
+SLICE_PREDICT|polyakov_charge_ratio_Nt2=1/2|polyakov_charge_ratio_Nt3=17/66|polyakov_charge_ratio_Nt6=43/1366|polyakov_charge_ratio_Nt9=1025/262146|tag=DERIVED|json=0
+SLICE_PREDICT|static_charge_pair_infinite_time_transfer_gap=ln(2)|exact_ratio_lambda_charge_over_lambda_vacuum=1/2|no_continuum_claim=1|tag=DERIVED|json=0
+SLICE_PREDICT|plaquette_scalar_even_sector_eigen_poly=X^2-315X+5184|lambda_plus=(315+sqrt(78489))/2|lambda_minus=(315-sqrt(78489))/2|scalar_gap=log(lambda_plus/lambda_minus)|tag=DERIVED|json=0
+SLICE_PREDICT|T_trace2=2^8*Tr(K^2)*Tr(B^2)^2|full_gauge_volume_factor_for_partition=9^Nt|tag=DERIVED|json=0
+SLICE_NEGATIVE|wrong_temporal_orientation=reject|missed_magnetic_plaquette=reject|nonisotropic_weight=reject|modified_slice_hash=reject|modified_leaf_and_internal_chain_but_wrong_external_anchor=reject|wrong_charged_character=reject|json=0
+SLICE_PROTOCOL|time_slices_processed_in_order=1|state_bytes_canonical=1|T_hash_in_every_leaf=1|HBI_HBP_SHA_SH_HASH=1|external_root_anchor_in_git_commit=1|step_vs_matrix_jump_exact_comparison=1|reviewer=Opus_pending|json=0
+SLICE_LIMIT|glueball_mass_for_full_nonabelian_SU3=OPEN|dynamical_quarks=OPEN|nondegenerate_4D_spatial_grid=OPEN|scale_limit_not_requested|json=0
