@@ -59,7 +59,14 @@ def centralizer_sizes(group):
 
 def burnside(group, cycles):
     centralizers = centralizer_sizes(group)
-    numerator = sum(c ** cycles for c in centralizers)
+    assert cycles >= 0
+    powers = []
+    for c in centralizers:
+        value = 1
+        for unused in range(cycles):
+            value *= c
+        powers.append(value)
+    numerator = sum(powers)
     assert numerator % group.n == 0
     return numerator // group.n
 

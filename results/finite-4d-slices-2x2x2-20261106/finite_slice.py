@@ -164,7 +164,7 @@ def factor_contract(group, before, after):
         residual.append((scope,entries))
         factors = residual
         candidates.remove(var)
-    assert all(not vars for vars,unused in factors)
+    assert all(not remaining for remaining,unused in factors)
     return product_int(tab[()] for unused,tab in factors),max_scope
 
 
